@@ -1,0 +1,20 @@
+{
+  "name": "com.deucarian.attacks",
+  "version": "0.1.0",
+  "displayName": "Deucarian Attacks",
+  "description": "Pure C# attack orchestration for cooldowns, caller-supplied target selection, attack intents, and Combat damage request creation.",
+  "unity": "6000.3",
+  "author": { "name": "Deucarian" },
+  "license": "MIT",
+  "dependencies": {
+    "com.deucarian.gameplay-foundation": "0.1.0",
+    "com.deucarian.combat": "0.1.0"
+  },
+  "samples": [
+    {
+      "displayName": "Attacks Minimal",
+      "description": "Small direct attack sample using supplied target candidates and Combat resolution.",
+      "path": "Samples~/AttacksMinimal"
+    }
+  ]
+}

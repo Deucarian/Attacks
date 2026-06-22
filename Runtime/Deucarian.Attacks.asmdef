@@ -1,0 +1,17 @@
+{
+  "name": "Deucarian.Attacks",
+  "rootNamespace": "Deucarian.Attacks",
+  "references": [
+    "Deucarian.GameplayFoundation",
+    "Deucarian.Combat"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}
