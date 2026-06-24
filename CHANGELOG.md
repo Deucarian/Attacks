@@ -2,8 +2,9 @@
 
 ## Unreleased
 
+- Updated Attack, Enemy, and Wave authoring provider documentation/tests for the shared `Tools/Deucarian/Game Content Authoring` menu path and shared Deucarian card styling.
 - Added `Deucarian.Attacks.Authoring` ScriptableObject recipe assets for root attack definitions, mechanics, targeting, delivery, status effects, and presentation.
-- Moved the `Deucarian/Game Content Authoring` editor shell to `com.deucarian.game-content-authoring`; Attacks now contributes Attack, Enemy, and Wave providers to that shared window.
+- Moved the `Tools/Deucarian/Game Content Authoring` editor shell to `com.deucarian.game-content-authoring`; Attacks now contributes Attack, Enemy, and Wave providers to that shared window.
 - Added editor providers for creating linked attack recipe assets under `Assets/GameContent/Attacks/{AttackId}`.
 - Added recipe validation, presentation invocation helpers, and tests for runtime conversion, status hooks, missing optional presentation assets, and asset-creation validation.
 - Added Enemy and Wave authoring providers with root assets plus stats, presentation, schedule, and entries section assets.
