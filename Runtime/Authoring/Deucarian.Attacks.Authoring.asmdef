@@ -1,0 +1,17 @@
+{
+  "name": "Deucarian.Attacks.Authoring",
+  "rootNamespace": "Deucarian.Attacks.Authoring",
+  "references": [
+    "Deucarian.Attacks",
+    "Deucarian.Combat"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

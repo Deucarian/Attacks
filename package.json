@@ -2,7 +2,7 @@
   "name": "com.deucarian.attacks",
   "version": "0.1.0",
   "displayName": "Deucarian Attacks",
-  "description": "Pure C# attack orchestration for cooldowns, caller-supplied target selection, attack intents, and Combat damage request creation.",
+  "description": "Pure C# attack orchestration plus Unity attack recipe authoring assets and editor wizard support.",
   "unity": "6000.3",
   "author": { "name": "Deucarian" },
   "license": "MIT",

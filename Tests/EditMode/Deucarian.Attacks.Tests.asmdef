@@ -3,6 +3,7 @@
   "rootNamespace": "Deucarian.Attacks.Tests",
   "references": [
     "Deucarian.Attacks",
+    "Deucarian.Attacks.Authoring",
     "Deucarian.GameplayFoundation",
     "Deucarian.Combat",
     "Deucarian.DefenseGames",

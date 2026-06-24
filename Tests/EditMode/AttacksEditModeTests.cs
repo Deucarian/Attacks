@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Deucarian.Attacks.Authoring;
 using Deucarian.Combat;
 using Deucarian.DefenseGames;
 using Deucarian.Encounters;
@@ -203,6 +204,108 @@ namespace Deucarian.Attacks.Tests
             DamageResolutionResult combat = CombatDamageResolver.Resolve(attacks.TryAttack(Source, BasicAttack, new[] { new AttackTargetCandidate(attackerHealth.Id, attackerHealth, 1) }).Intent.ResolutionRequest);
             if (combat.Current.LifeState == LifeState.Dead) defense.ReportKilled(agent);
             Assert.AreEqual(0, defense.ActiveAgentCount);
+        }
+
+        [Test]
+        public void AttackDefinitionAsset_ConvertsToRuntimeDefinitionAndStatusHooks()
+        {
+            AttackDefinitionAsset recipe = AttackDefinitionAsset.CreateTransient(
+                "attack.authoring.slow-bolt",
+                "Slow Bolt",
+                AttackRecipeDeliveryMode.Projectile,
+                Physical.Value,
+                9,
+                2,
+                7,
+                AttackRecipeTargetingMode.Nearest,
+                new[] { new AttackStatusEffectRecipe("status.authoring.slow", 60, 15, 0.35f) },
+                "projectile.authoring.slow-bolt",
+                "projectile.authoring.slow-bolt",
+                8,
+                120,
+                homing: true);
+
+            AttackRecipeValidationReport report = AttackRecipeValidator.Validate(recipe);
+            Assert.IsTrue(report.IsValid);
+
+            AttackDefinition definition = recipe.ToRuntimeDefinition();
+            Assert.AreEqual(new AttackDefinitionId("attack.authoring.slow-bolt"), definition.Id);
+            Assert.AreEqual(2, definition.CooldownTicks);
+            Assert.AreEqual(9, definition.BaseDamage);
+            Assert.AreEqual(1, definition.Statuses.Count);
+
+            var catalog = new CombatCatalog(new[] { new DamageTypeDefinition(Physical) }, recipe.CreateStatusDefinitions());
+            var runtime = new AttackRuntime(catalog, new[] { definition });
+            runtime.RegisterSource(SourceSnapshot());
+
+            HealthState target = new HealthState(new CombatantId("combatant.authoring.enemy"), 20, 20);
+            AttackResult attack = runtime.TryAttack(Source, definition.Id, new[] { new AttackTargetCandidate(target.Id, target, 1) });
+            var statusState = new StatusState();
+            DamageResolutionResult resolved = CombatDamageResolver.Resolve(catalog, target, statusState, attack.Intent.DamageRequest);
+
+            Assert.IsTrue(attack.Succeeded);
+            Assert.IsTrue(resolved.Succeeded);
+            Assert.IsTrue(statusState.Contains(new StatusEffectId("status.authoring.slow")));
+        }
+
+        [Test]
+        public void AttackRecipeValidation_RequiresProjectilePrefabForAssetCreation()
+        {
+            AttackDefinitionAsset recipe = AttackDefinitionAsset.CreateTransient(
+                "attack.authoring.prefab-check",
+                "Prefab Check",
+                AttackRecipeDeliveryMode.Projectile,
+                Physical.Value,
+                5,
+                1,
+                5,
+                AttackRecipeTargetingMode.Nearest,
+                projectileDefinitionId: "projectile.authoring.prefab-check",
+                projectileSpawnableId: "projectile.authoring.prefab-check");
+
+            AttackRecipeValidationReport missingPrefab = AttackRecipeValidator.Validate(recipe, AttackRecipeValidationOptions.AssetCreation);
+            Assert.IsFalse(missingPrefab.IsValid);
+
+            GameObject projectilePrefab = new GameObject("AuthoringProjectilePrefab");
+            try
+            {
+                recipe.Delivery.ConfigureProjectile(
+                    "projectile.authoring.prefab-check",
+                    "projectile.authoring.prefab-check",
+                    projectilePrefab,
+                    8,
+                    120);
+                AttackRecipeValidationReport valid = AttackRecipeValidator.Validate(recipe, AttackRecipeValidationOptions.AssetCreation);
+                Assert.IsTrue(valid.IsValid);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectilePrefab);
+            }
+        }
+
+        [Test]
+        public void PresentationInvoker_GracefullyHandlesMissingOptionalAssets()
+        {
+            AttackDefinitionAsset recipe = AttackDefinitionAsset.CreateTransient(
+                "attack.authoring.presentation",
+                "Presentation",
+                AttackRecipeDeliveryMode.Hitscan,
+                Physical.Value,
+                4,
+                0,
+                5,
+                AttackRecipeTargetingMode.ForwardDirection);
+
+            AttackPresentationInvocationResult result = AttackPresentationRuntimeInvoker.Invoke(
+                recipe,
+                AttackPresentationEventKind.OnFire,
+                Vector3.zero,
+                Quaternion.identity);
+
+            Assert.IsTrue(result.Invoked);
+            Assert.IsFalse(result.AudioPlayed);
+            Assert.IsFalse(result.VfxSpawned);
         }
 
         [Test]
