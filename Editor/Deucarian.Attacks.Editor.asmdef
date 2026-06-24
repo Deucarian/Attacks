@@ -4,7 +4,8 @@
   "references": [
     "Deucarian.Attacks",
     "Deucarian.Attacks.Authoring",
-    "Deucarian.Combat"
+    "Deucarian.Combat",
+    "Deucarian.GameContentAuthoring.Editor"
   ],
   "includePlatforms": [
     "Editor"

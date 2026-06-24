@@ -4,6 +4,7 @@
   "references": [
     "Deucarian.Attacks",
     "Deucarian.Attacks.Authoring",
+    "Deucarian.GameContentAuthoring.Editor",
     "Deucarian.GameplayFoundation",
     "Deucarian.Combat",
     "Deucarian.DefenseGames",

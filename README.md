@@ -6,7 +6,7 @@ Attacks answers who can attack, when they can attack, which supplied candidate s
 
 ## Game Content Authoring
 
-The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and an editor-only wizard at `Deucarian/Game Content Authoring`.
+The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Install Attacks and open `Deucarian/Game Content Authoring`; the shared window comes from `com.deucarian.game-content-authoring`, while the domain-specific creation logic stays in Attacks.
 
 An authored attack is a root `AttackDefinitionAsset` plus focused section assets:
 
@@ -16,7 +16,7 @@ An authored attack is a root `AttackDefinitionAsset` plus focused section assets
 - `AttackStatusEffectsDefinitionAsset` for Combat status definitions and application requests.
 - `AttackPresentationDefinitionAsset` for OnCast, OnFire, OnImpact, OnTick, and OnExpire audio/VFX hooks.
 
-The wizard creates these sections as sub-assets under one root asset so designers work with one attack in the Project window without forcing every field into a single monolithic inspector. Runtime consumers convert the root asset to the existing pure C# `AttackDefinition` with `ToRuntimeDefinition()`, and optional presentation is invoked through `AttackPresentationRuntimeInvoker`.
+The shared window creates these sections as sub-assets under one root asset so designers work with one attack in the Project window without forcing every field into a single monolithic inspector. Runtime consumers convert the root asset to the existing pure C# `AttackDefinition` with `ToRuntimeDefinition()`, and optional presentation is invoked through `AttackPresentationRuntimeInvoker`.
 
 Authored enemies and waves follow the same root-plus-section pattern:
 
@@ -46,6 +46,6 @@ Assets/GameContent/Waves/{WaveId}/
     └── {WaveId}_Entries
 ```
 
-The wizard validates required IDs, duplicate IDs, invalid numeric values, missing required enemy prefabs, missing wave enemy references, duplicate status IDs, existing asset paths, and output paths before creating assets. It refuses accidental overwrites and asks before writing into an existing content folder. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
+The providers validate required IDs, duplicate IDs, invalid numeric values, missing required enemy prefabs, missing wave enemy references, duplicate status IDs, existing asset paths, and output paths before creating assets. They refuse accidental overwrites and ask before writing into an existing content folder. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
 
 Next authoring providers should follow the same registry shape used by the wizard: Upgrade, Tower/Weapon, Loot, shared Status Effect, Ability, and VFX/Audio preset providers.

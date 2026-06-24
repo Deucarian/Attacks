@@ -7,6 +7,7 @@ using Deucarian.Attacks.Authoring;
 using Deucarian.Combat;
 using Deucarian.DefenseGames;
 using Deucarian.Encounters;
+using Deucarian.GameContentAuthoring.Editor;
 using Deucarian.GameplayFoundation;
 using Deucarian.WorldNavigation;
 using Deucarian.WorldSpawning;
@@ -306,6 +307,20 @@ namespace Deucarian.Attacks.Tests
             Assert.IsTrue(result.Invoked);
             Assert.IsFalse(result.AudioPlayed);
             Assert.IsFalse(result.VfxSpawned);
+        }
+
+        [Test]
+        public void SharedGameContentAuthoringSurface_ExposesMenuAndAttackProviders()
+        {
+            Assert.AreEqual("Deucarian/Game Content Authoring", GameContentAuthoringWindow.MenuPath);
+
+            var providerIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (IGameContentAuthoringProvider provider in GameContentAuthoringProviderRegistry.Providers)
+                providerIds.Add(provider.ProviderId);
+
+            Assert.IsTrue(providerIds.Contains("com.deucarian.attacks.attack"));
+            Assert.IsTrue(providerIds.Contains("com.deucarian.attacks.enemy"));
+            Assert.IsTrue(providerIds.Contains("com.deucarian.attacks.wave"));
         }
 
         [Test]
