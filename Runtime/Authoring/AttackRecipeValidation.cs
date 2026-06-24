@@ -75,6 +75,18 @@ namespace Deucarian.Attacks.Authoring
             }
         }
 
+        public int WarningCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < _issues.Length; i++)
+                    if (_issues[i].Severity == AttackRecipeValidationSeverity.Warning)
+                        count++;
+                return count;
+            }
+        }
+
         private static AttackRecipeValidationIssue[] Copy(IReadOnlyList<AttackRecipeValidationIssue> issues)
         {
             if (issues == null || issues.Count == 0) return Array.Empty<AttackRecipeValidationIssue>();
@@ -155,11 +167,11 @@ namespace Deucarian.Attacks.Authoring
                     if (delivery.ProjectileLifetimeTicks <= 0) issues.Add(Error("Delivery.ProjectileLifetimeTicks", "Projectile lifetime must be greater than zero."));
                     if (delivery.PierceCount < 0) issues.Add(Error("Delivery.PierceCount", "Pierce count cannot be negative."));
                     if (delivery.Homing && (delivery.HomingTurnRate <= 0f || float.IsNaN(delivery.HomingTurnRate) || float.IsInfinity(delivery.HomingTurnRate))) issues.Add(Error("Delivery.HomingTurnRate", "Homing turn rate must be greater than zero."));
-                    if (options.RequireProjectilePrefab && delivery.ProjectilePrefab == null) issues.Add(Error("Delivery.ProjectilePrefab", "Projectile attacks need a prefab or model reference before asset creation."));
+                    if (options.RequireProjectilePrefab && delivery.ProjectilePrefab == null) issues.Add(Error("Delivery.ProjectilePrefab", "Choose a projectile prefab or model reference before creating this asset. Runtime conversion can still be data-only when another spawner supplies the prefab."));
                     break;
                 case AttackRecipeDeliveryMode.Hitscan:
                     if (delivery.MaxHits <= 0) issues.Add(Error("Delivery.MaxHits", "Hitscan max hits must be greater than zero."));
-                    if (options.RequireHitscanVfx && delivery.BeamVfxPrefab == null && delivery.ImpactVfxPrefab == null) issues.Add(Error("Delivery.HitscanVfx", "Hitscan attacks need a beam/tracer or impact VFX reference before asset creation."));
+                    if (options.RequireHitscanVfx && delivery.BeamVfxPrefab == null && delivery.ImpactVfxPrefab == null) issues.Add(Error("Delivery.HitscanVfx", "Choose a beam/tracer or impact VFX reference before creating this hitscan asset. Runtime calls skip missing presentation assets safely."));
                     break;
                 case AttackRecipeDeliveryMode.Area:
                     if (delivery.Radius <= 0f || float.IsNaN(delivery.Radius) || float.IsInfinity(delivery.Radius)) issues.Add(Error("Delivery.Radius", "Area attacks need a radius greater than zero."));

@@ -84,7 +84,15 @@ namespace Deucarian.Attacks.Editor
         private void DrawAttackProvider(AttackAuthoringState state)
         {
             AttackDefinitionAsset preview = AttackRecipeAssetCreator.BuildTransient(state);
-            AttackRecipeValidationReport report = AttackRecipeAssetCreator.ValidateForCreation(state, preview);
+            AttackRecipeValidationReport report;
+            try
+            {
+                report = AttackRecipeAssetCreator.ValidateForCreation(state, preview);
+            }
+            finally
+            {
+                AttackRecipeAssetCreator.DestroyTransient(preview);
+            }
 
             DrawSection("Attack Identity", () =>
             {
@@ -167,7 +175,7 @@ namespace Deucarian.Attacks.Editor
                 DrawValidation(report);
                 GUILayout.Space(8f);
                 GUI.enabled = report.IsValid;
-                if (GUILayout.Button("Create Attack", _primaryButton, GUILayout.Height(30f)))
+                if (GUILayout.Button("Create Attack Asset", _primaryButton, GUILayout.Height(30f)))
                 {
                     _lastResult = AttackRecipeAssetCreator.CreateAssets(state);
                     if (_lastResult.CreatedRoot != null)
@@ -205,9 +213,14 @@ namespace Deucarian.Attacks.Editor
         {
             if (report == null || report.Issues.Count == 0)
             {
-                EditorGUILayout.HelpBox("Ready to create the linked AttackDefinition recipe assets.", MessageType.Info);
+                EditorGUILayout.HelpBox("Ready to create one root AttackDefinition asset with focused sub-assets.", MessageType.Info);
                 return;
             }
+
+            string summary = report.ErrorCount == 0
+                ? report.WarningCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " warning(s). You can create the asset after confirming any prompts."
+                : report.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " blocking issue(s) and " + report.WarningCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " warning(s).";
+            EditorGUILayout.HelpBox(summary, report.ErrorCount == 0 ? MessageType.Warning : MessageType.Error);
 
             for (int i = 0; i < report.Issues.Count; i++)
             {
@@ -376,9 +389,21 @@ namespace Deucarian.Attacks.Editor
         {
             var issues = new List<AttackRecipeValidationIssue>(AttackRecipeValidator.Validate(recipe, AttackRecipeValidationOptions.AssetCreation).Issues);
             if (!IsValidAssetFolderPath(state.OutputRoot))
-                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Output path must be inside Assets.", "OutputRoot"));
+            {
+                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Output root must be Assets or a folder below Assets, without empty or parent-directory segments.", "OutputRoot"));
+            }
+            else
+            {
+                string folder = GetAttackFolder(state);
+                string rootPath = folder + "/" + GetFileStem(state) + "_AttackDefinition.asset";
+                if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath) != null)
+                    issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "An asset already exists at " + rootPath + ". Rename the attack or edit the existing asset.", "OutputRoot"));
+                else if (AssetDatabase.IsValidFolder(folder) && FolderContainsAssets(folder))
+                    issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Warning, "The attack folder already contains assets. Creation will ask for confirmation before adding this root asset.", "OutputRoot"));
+            }
+
             if (HasDuplicateAttackId(state.AttackId))
-                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Another AttackDefinition asset already uses this ID.", "Attack.Id"));
+                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Attack IDs must be unique. Rename this attack or edit the existing asset instead of creating another.", "Attack.Id"));
             return new AttackRecipeValidationReport(issues);
         }
 
@@ -387,23 +412,46 @@ namespace Deucarian.Attacks.Editor
             string folder = GetAttackFolder(state);
             return new[]
             {
-                "This will create:",
-                folder + "/" + GetFileStem(state) + "_AttackDefinition.asset",
-                "Sub-assets: Mechanics, Targeting, Delivery, StatusEffects, Presentation"
+                "Folder: " + folder,
+                "Root asset: " + GetFileStem(state) + "_AttackDefinition.asset",
+                "Sections: Mechanics, Targeting, Delivery, StatusEffects, Presentation",
+                "Delivery: " + GetDeliverySummary(state),
+                "Status: " + GetStatusSummary(state),
+                "Runtime: converts to a pure AttackDefinition; optional audio/VFX are skipped when unset."
             };
         }
 
         public static AttackAssetCreationResult CreateAssets(AttackAuthoringState state)
         {
             AttackDefinitionAsset preview = BuildRecipe(state, true);
-            AttackRecipeValidationReport report = ValidateForCreation(state, preview);
-            if (!report.IsValid)
-                return new AttackAssetCreationResult(false, "Fix validation errors before creating assets.", null);
+            AttackRecipeValidationReport report;
+            try
+            {
+                report = ValidateForCreation(state, preview);
+                if (!report.IsValid)
+                    return new AttackAssetCreationResult(false, "Fix validation errors before creating assets.", null);
+            }
+            finally
+            {
+                DestroyTransient(preview);
+            }
 
-            string folder = EnsureFolder(GetAttackFolder(state));
+            string folder = GetAttackFolder(state);
             string rootPath = folder + "/" + GetFileStem(state) + "_AttackDefinition.asset";
             if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath) != null)
                 return new AttackAssetCreationResult(false, "Asset already exists: " + rootPath, null);
+            if (AssetDatabase.IsValidFolder(folder) && FolderContainsAssets(folder))
+            {
+                bool confirmed = EditorUtility.DisplayDialog(
+                    "Use Existing Attack Folder?",
+                    "The folder already contains assets:\n\n" + folder + "\n\nCreate this attack root asset in that folder?",
+                    "Create Here",
+                    "Cancel");
+                if (!confirmed)
+                    return new AttackAssetCreationResult(false, "Creation canceled before writing into existing folder.", null);
+            }
+
+            folder = EnsureFolder(folder);
 
             AttackDefinitionAsset root = BuildRecipe(state, false);
             AssetDatabase.CreateAsset(root, rootPath);
@@ -416,6 +464,22 @@ namespace Deucarian.Attacks.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             return new AttackAssetCreationResult(true, "Created attack recipe at " + rootPath, AssetDatabase.LoadAssetAtPath<AttackDefinitionAsset>(rootPath));
+        }
+
+        public static void DestroyTransient(AttackDefinitionAsset recipe)
+        {
+            if (recipe == null || recipe.hideFlags != HideFlags.HideAndDontSave) return;
+            AttackMechanicsDefinitionAsset mechanics = recipe.Mechanics;
+            AttackTargetingDefinitionAsset targeting = recipe.Targeting;
+            AttackDeliveryDefinitionAsset delivery = recipe.Delivery;
+            AttackStatusEffectsDefinitionAsset statuses = recipe.StatusEffects;
+            AttackPresentationDefinitionAsset presentation = recipe.Presentation;
+            DestroyTransientObject(mechanics);
+            DestroyTransientObject(targeting);
+            DestroyTransientObject(delivery);
+            DestroyTransientObject(statuses);
+            DestroyTransientObject(presentation);
+            DestroyTransientObject(recipe);
         }
 
         private static AttackDefinitionAsset BuildRecipe(AttackAuthoringState state, bool transient)
@@ -546,7 +610,7 @@ namespace Deucarian.Attacks.Editor
 
         private static string GetAttackFolder(AttackAuthoringState state)
         {
-            string root = string.IsNullOrWhiteSpace(state.OutputRoot) ? "Assets/GameContent/Attacks" : state.OutputRoot.Trim().Replace("\\", "/");
+            string root = NormalizeAssetFolderPath(state.OutputRoot);
             return root.TrimEnd('/') + "/" + SanitizePathSegment(state.AttackId);
         }
 
@@ -571,12 +635,26 @@ namespace Deucarian.Attacks.Editor
 
         private static bool IsValidAssetFolderPath(string path)
         {
-            return !string.IsNullOrWhiteSpace(path) && path.Replace("\\", "/").StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
+            string normalized = NormalizeAssetFolderPath(path);
+            if (string.IsNullOrWhiteSpace(normalized)) return false;
+            if (!string.Equals(normalized, "Assets", StringComparison.OrdinalIgnoreCase) && !normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string[] parts = normalized.Split('/');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string part = parts[i];
+                if (string.IsNullOrWhiteSpace(part) || part == "." || part == ".." || HasInvalidAssetPathChars(part))
+                    return false;
+            }
+
+            return true;
         }
 
         private static string EnsureFolder(string folder)
         {
-            folder = folder.Replace("\\", "/");
+            folder = NormalizeAssetFolderPath(folder);
+            if (string.Equals(folder, "Assets", StringComparison.OrdinalIgnoreCase)) return "Assets";
             string[] parts = folder.Split('/');
             string current = parts[0];
             for (int i = 1; i < parts.Length; i++)
@@ -588,6 +666,60 @@ namespace Deucarian.Attacks.Editor
             }
 
             return folder;
+        }
+
+        private static bool FolderContainsAssets(string folder)
+        {
+            if (!AssetDatabase.IsValidFolder(folder)) return false;
+            return AssetDatabase.FindAssets(string.Empty, new[] { folder }).Length > 0;
+        }
+
+        private static string NormalizeAssetFolderPath(string path)
+        {
+            string normalized = string.IsNullOrWhiteSpace(path)
+                ? "Assets/GameContent/Attacks"
+                : path.Trim().Replace("\\", "/");
+            while (normalized.Contains("//")) normalized = normalized.Replace("//", "/");
+            return normalized.TrimEnd('/');
+        }
+
+        private static bool HasInvalidAssetPathChars(string value)
+        {
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                if (c == '<' || c == '>' || c == ':' || c == '"' || c == '|' || c == '?' || c == '*')
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string GetDeliverySummary(AttackAuthoringState state)
+        {
+            if (state.DeliveryMode == AttackRecipeDeliveryMode.Projectile)
+            {
+                string homing = state.Homing ? ", homing" : string.Empty;
+                return "Projectile " + state.ProjectileDefinitionId + " -> " + state.ProjectileSpawnableId + " at " + state.ProjectileSpeed.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " units/s" + homing;
+            }
+
+            if (state.DeliveryMode == AttackRecipeDeliveryMode.Hitscan)
+                return "Hitscan with up to " + state.MaxHits.ToString(System.Globalization.CultureInfo.InvariantCulture) + " hit(s)";
+            if (state.DeliveryMode == AttackRecipeDeliveryMode.Area)
+                return "Area radius " + state.Radius.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " with up to " + state.MaxHits.ToString(System.Globalization.CultureInfo.InvariantCulture) + " hit(s)";
+            return "Aura radius " + state.Radius.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " every " + state.TickIntervalSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " second(s)";
+        }
+
+        private static string GetStatusSummary(AttackAuthoringState state)
+        {
+            return state.IncludeStatusEffect
+                ? state.StatusId + " for " + state.StatusDurationTicks.ToString(System.Globalization.CultureInfo.InvariantCulture) + " tick(s)"
+                : "None";
+        }
+
+        private static void DestroyTransientObject(UnityEngine.Object target)
+        {
+            if (target != null) UnityEngine.Object.DestroyImmediate(target);
         }
     }
 }

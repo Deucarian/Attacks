@@ -30,6 +30,6 @@ Assets/GameContent/Attacks/{AttackId}/
     └── {AttackId}_Presentation
 ```
 
-The wizard validates required IDs, duplicate attack IDs, invalid numeric values, projectile prefab/model requirements, hitscan VFX requirements, duplicate status IDs, and output paths before creating assets. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
+The wizard validates required IDs, duplicate attack IDs, invalid numeric values, projectile prefab/model requirements, hitscan VFX requirements, duplicate status IDs, existing asset paths, and output paths before creating assets. It refuses accidental overwrites and asks before writing into an existing attack folder. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
 
-Next authoring providers should follow the same registry shape used by the wizard: Enemy, Wave, Upgrade, Tower/Weapon, Ability, Loot, Status Effect, and VFX/Audio preset.
+Next authoring providers should follow the same registry shape used by the wizard: Enemy, Wave, Upgrade, Tower/Weapon, VFX/Audio preset, and later shared status-effect or ability recipes.
