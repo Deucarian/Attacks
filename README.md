@@ -4,7 +4,7 @@
 
 Attacks answers who can attack, when they can attack, which supplied candidate should be attacked, and what Combat request should be produced. It does not query scenes, move projectiles, equip weapons, render VFX/audio/UI, grant rewards, save files, place towers, or depend on Defense Games.
 
-## Attack Authoring
+## Game Content Authoring
 
 The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and an editor-only wizard at `Deucarian/Game Content Authoring`.
 
@@ -18,6 +18,12 @@ An authored attack is a root `AttackDefinitionAsset` plus focused section assets
 
 The wizard creates these sections as sub-assets under one root asset so designers work with one attack in the Project window without forcing every field into a single monolithic inspector. Runtime consumers convert the root asset to the existing pure C# `AttackDefinition` with `ToRuntimeDefinition()`, and optional presentation is invoked through `AttackPresentationRuntimeInvoker`.
 
+Authored enemies and waves follow the same root-plus-section pattern:
+
+- `EnemyDefinitionAsset` owns identity, role, tags, and links to `EnemyStatsDefinitionAsset` plus `EnemyPresentationDefinitionAsset`.
+- `WaveDefinitionAsset` owns identity, tags, and links to `WaveScheduleDefinitionAsset` plus `WaveEntriesDefinitionAsset`.
+- `EnemyPresentationRuntimeInvoker` treats prefab, audio, and VFX hooks as optional; missing optional assets are skipped.
+
 Created assets use this default layout:
 
 ```text
@@ -28,8 +34,18 @@ Assets/GameContent/Attacks/{AttackId}/
     ├── {AttackId}_Delivery
     ├── {AttackId}_StatusEffects
     └── {AttackId}_Presentation
+
+Assets/GameContent/Enemies/{EnemyId}/
+└── {EnemyId}_EnemyDefinition.asset
+    ├── {EnemyId}_Stats
+    └── {EnemyId}_Presentation
+
+Assets/GameContent/Waves/{WaveId}/
+└── {WaveId}_WaveDefinition.asset
+    ├── {WaveId}_Schedule
+    └── {WaveId}_Entries
 ```
 
-The wizard validates required IDs, duplicate attack IDs, invalid numeric values, projectile prefab/model requirements, hitscan VFX requirements, duplicate status IDs, existing asset paths, and output paths before creating assets. It refuses accidental overwrites and asks before writing into an existing attack folder. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
+The wizard validates required IDs, duplicate IDs, invalid numeric values, missing required enemy prefabs, missing wave enemy references, duplicate status IDs, existing asset paths, and output paths before creating assets. It refuses accidental overwrites and asks before writing into an existing content folder. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
 
-Next authoring providers should follow the same registry shape used by the wizard: Enemy, Wave, Upgrade, Tower/Weapon, VFX/Audio preset, and later shared status-effect or ability recipes.
+Next authoring providers should follow the same registry shape used by the wizard: Upgrade, Tower/Weapon, Loot, shared Status Effect, Ability, and VFX/Audio preset providers.

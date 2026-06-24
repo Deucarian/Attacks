@@ -309,6 +309,87 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void EnemyDefinitionValidation_RequiresPrefabForAssetCreationOnly()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                "enemy.authoring.basic",
+                "Basic",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value);
+
+            ContentAuthoringValidationReport runtimeReport = EnemyDefinitionValidator.Validate(enemy, EnemyDefinitionValidationOptions.RuntimeFriendly);
+            ContentAuthoringValidationReport creationReport = EnemyDefinitionValidator.Validate(enemy, EnemyDefinitionValidationOptions.AssetCreation);
+
+            Assert.IsTrue(runtimeReport.IsValid);
+            Assert.IsFalse(creationReport.IsValid);
+        }
+
+        [Test]
+        public void EnemyPresentationInvoker_GracefullyHandlesMissingOptionalAssets()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                "enemy.authoring.presentation",
+                "Presentation",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value);
+
+            EnemyPresentationInvocationResult result = EnemyPresentationRuntimeInvoker.Invoke(
+                enemy,
+                EnemyPresentationEventKind.OnSpawn,
+                Vector3.zero,
+                Quaternion.identity);
+
+            Assert.IsTrue(result.Invoked);
+            Assert.IsFalse(result.AudioPlayed);
+            Assert.IsFalse(result.VfxSpawned);
+        }
+
+        [Test]
+        public void WaveDefinitionValidation_RequiresEnemyEntries()
+        {
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.invalid",
+                "Invalid",
+                0,
+                new[] { new WaveEntryRecipe(null, 3, 1, 0, 10, "perimeter-north") });
+
+            ContentAuthoringValidationReport report = WaveDefinitionValidator.Validate(wave);
+
+            Assert.IsFalse(report.IsValid);
+        }
+
+        [Test]
+        public void WaveDefinitionValidation_AcceptsValidEnemyReference()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                "enemy.authoring.fast",
+                "Fast",
+                EnemyRole.Fast,
+                5f,
+                3.4f,
+                1,
+                2f,
+                Physical.Value);
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.valid",
+                "Valid",
+                6,
+                new[] { new WaveEntryRecipe(enemy, 4, 1, 0, 10, "perimeter-east", 1) });
+
+            ContentAuthoringValidationReport report = WaveDefinitionValidator.Validate(wave);
+
+            Assert.IsTrue(report.IsValid);
+        }
+
+        [Test]
         public void DurableBenchmark_WritesAttackEvaluationMeasurements()
         {
             BenchmarkMeasurement one = Measure(1000);

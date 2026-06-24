@@ -6,10 +6,12 @@ using UnityEngine;
 
 namespace Deucarian.Attacks.Editor
 {
-    internal sealed class AttackAuthoringWindow : EditorWindow
+    internal sealed partial class AttackAuthoringWindow : EditorWindow
     {
         private const string WindowTitle = "Game Content Authoring";
         private readonly AttackAuthoringState _attackState = new AttackAuthoringState();
+        private readonly EnemyAuthoringState _enemyState = new EnemyAuthoringState();
+        private readonly WaveAuthoringState _waveState = new WaveAuthoringState();
         private Vector2 _scroll;
         private int _selectedProvider;
         private GUIStyle _headerTitle;
@@ -22,7 +24,7 @@ namespace Deucarian.Attacks.Editor
         private GUIStyle _primaryButton;
         private GUIStyle _issueStyle;
         private bool _stylesReady;
-        private AttackAssetCreationResult _lastResult;
+        private ContentAssetCreationResult _lastResult;
 
         [MenuItem("Deucarian/Game Content Authoring")]
         public static void Open()
@@ -44,7 +46,7 @@ namespace Deucarian.Attacks.Editor
                 {
                     _scroll = EditorGUILayout.BeginScrollView(_scroll);
                     IGameContentAuthoringProvider provider = GameContentAuthoringProviderRegistry.Providers[Mathf.Clamp(_selectedProvider, 0, GameContentAuthoringProviderRegistry.Providers.Count - 1)];
-                    provider.Draw(this, _attackState);
+                    provider.Draw(this);
                     EditorGUILayout.EndScrollView();
                 }
             }
@@ -76,8 +78,8 @@ namespace Deucarian.Attacks.Editor
                 }
 
                 GUILayout.FlexibleSpace();
-                EditorGUILayout.LabelField("First vertical slice", _muted);
-                EditorGUILayout.LabelField("Attack Authoring", _sectionTitle);
+                EditorGUILayout.LabelField("Authoring Suite", _muted);
+                EditorGUILayout.LabelField("Attack, Enemy, Wave", _sectionTitle);
             }
         }
 
@@ -247,7 +249,7 @@ namespace Deucarian.Attacks.Editor
             EditorGUILayout.HelpBox(_lastResult.Message, MessageType.Info);
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.ObjectField("Created Root", _lastResult.CreatedRoot, typeof(AttackDefinitionAsset), false);
+                EditorGUILayout.ObjectField("Created Root", _lastResult.CreatedRoot, typeof(UnityEngine.Object), false);
                 if (GUILayout.Button(new GUIContent("Ping", "Ping created root asset"), GUILayout.Width(48f)))
                     EditorGUIUtility.PingObject(_lastResult.CreatedRoot);
             }
@@ -285,7 +287,7 @@ namespace Deucarian.Attacks.Editor
             string DisplayName { get; }
             string Description { get; }
             bool Enabled { get; }
-            void Draw(AttackAuthoringWindow window, AttackAuthoringState attackState);
+            void Draw(AttackAuthoringWindow window);
         }
 
         private sealed class AttackProvider : IGameContentAuthoringProvider
@@ -293,7 +295,23 @@ namespace Deucarian.Attacks.Editor
             public string DisplayName => "Attack";
             public string Description => "Create a root AttackDefinition with mechanics, targeting, delivery, status, and presentation sections.";
             public bool Enabled => true;
-            public void Draw(AttackAuthoringWindow window, AttackAuthoringState attackState) => window.DrawAttackProvider(attackState);
+            public void Draw(AttackAuthoringWindow window) => window.DrawAttackProvider(window._attackState);
+        }
+
+        private sealed class EnemyProvider : IGameContentAuthoringProvider
+        {
+            public string DisplayName => "Enemy";
+            public string Description => "Create a root EnemyDefinition with stats and presentation sections.";
+            public bool Enabled => true;
+            public void Draw(AttackAuthoringWindow window) => window.DrawEnemyProvider(window._enemyState);
+        }
+
+        private sealed class WaveProvider : IGameContentAuthoringProvider
+        {
+            public string DisplayName => "Wave";
+            public string Description => "Create a root WaveDefinition with schedule and spawn entry sections.";
+            public bool Enabled => true;
+            public void Draw(AttackAuthoringWindow window) => window.DrawWaveProvider(window._waveState);
         }
 
         private sealed class FutureProvider : IGameContentAuthoringProvider
@@ -303,7 +321,7 @@ namespace Deucarian.Attacks.Editor
             public string DisplayName => _displayName;
             public string Description => "Planned content authoring provider.";
             public bool Enabled => false;
-            public void Draw(AttackAuthoringWindow window, AttackAuthoringState attackState) { }
+            public void Draw(AttackAuthoringWindow window) { }
         }
 
         private static class GameContentAuthoringProviderRegistry
@@ -311,8 +329,8 @@ namespace Deucarian.Attacks.Editor
             private static readonly IGameContentAuthoringProvider[] Items =
             {
                 new AttackProvider(),
-                new FutureProvider("Enemy"),
-                new FutureProvider("Wave"),
+                new EnemyProvider(),
+                new WaveProvider(),
                 new FutureProvider("Upgrade"),
                 new FutureProvider("Tower/Weapon"),
                 new FutureProvider("VFX/Audio Preset")
@@ -364,20 +382,6 @@ namespace Deucarian.Attacks.Editor
         public GameObject ImpactVfxPresentationPrefab;
     }
 
-    internal sealed class AttackAssetCreationResult
-    {
-        public AttackAssetCreationResult(bool succeeded, string message, AttackDefinitionAsset createdRoot)
-        {
-            Succeeded = succeeded;
-            Message = message ?? string.Empty;
-            CreatedRoot = createdRoot;
-        }
-
-        public bool Succeeded { get; }
-        public string Message { get; }
-        public AttackDefinitionAsset CreatedRoot { get; }
-    }
-
     internal static class AttackRecipeAssetCreator
     {
         public static AttackDefinitionAsset BuildTransient(AttackAuthoringState state)
@@ -421,7 +425,7 @@ namespace Deucarian.Attacks.Editor
             };
         }
 
-        public static AttackAssetCreationResult CreateAssets(AttackAuthoringState state)
+        public static ContentAssetCreationResult CreateAssets(AttackAuthoringState state)
         {
             AttackDefinitionAsset preview = BuildRecipe(state, true);
             AttackRecipeValidationReport report;
@@ -429,7 +433,7 @@ namespace Deucarian.Attacks.Editor
             {
                 report = ValidateForCreation(state, preview);
                 if (!report.IsValid)
-                    return new AttackAssetCreationResult(false, "Fix validation errors before creating assets.", null);
+                    return new ContentAssetCreationResult(false, "Fix validation errors before creating assets.", null);
             }
             finally
             {
@@ -439,16 +443,12 @@ namespace Deucarian.Attacks.Editor
             string folder = GetAttackFolder(state);
             string rootPath = folder + "/" + GetFileStem(state) + "_AttackDefinition.asset";
             if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath) != null)
-                return new AttackAssetCreationResult(false, "Asset already exists: " + rootPath, null);
+                return new ContentAssetCreationResult(false, "Asset already exists: " + rootPath, null);
             if (AssetDatabase.IsValidFolder(folder) && FolderContainsAssets(folder))
             {
-                bool confirmed = EditorUtility.DisplayDialog(
-                    "Use Existing Attack Folder?",
-                    "The folder already contains assets:\n\n" + folder + "\n\nCreate this attack root asset in that folder?",
-                    "Create Here",
-                    "Cancel");
+                bool confirmed = GameContentAuthoringEditorAssets.ConfirmExistingFolder(folder, "Attack");
                 if (!confirmed)
-                    return new AttackAssetCreationResult(false, "Creation canceled before writing into existing folder.", null);
+                    return new ContentAssetCreationResult(false, "Creation canceled before writing into existing folder.", null);
             }
 
             folder = EnsureFolder(folder);
@@ -460,10 +460,20 @@ namespace Deucarian.Attacks.Editor
             AddSubAsset(root.Delivery, root, GetFileStem(state) + "_Delivery");
             AddSubAsset(root.StatusEffects, root, GetFileStem(state) + "_StatusEffects");
             AddSubAsset(root.Presentation, root, GetFileStem(state) + "_Presentation");
+            root.Configure(
+                state.AttackId,
+                state.DisplayName,
+                state.Icon,
+                SplitCsv(state.TagsCsv),
+                root.Mechanics,
+                root.Targeting,
+                root.Delivery,
+                root.StatusEffects,
+                root.Presentation);
             EditorUtility.SetDirty(root);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            return new AttackAssetCreationResult(true, "Created attack recipe at " + rootPath, AssetDatabase.LoadAssetAtPath<AttackDefinitionAsset>(rootPath));
+            return new ContentAssetCreationResult(true, "Created attack recipe at " + rootPath, AssetDatabase.LoadAssetAtPath<AttackDefinitionAsset>(rootPath));
         }
 
         public static void DestroyTransient(AttackDefinitionAsset recipe)
@@ -573,39 +583,17 @@ namespace Deucarian.Attacks.Editor
 
         private static void AddSubAsset(ScriptableObject subAsset, UnityEngine.Object root, string name)
         {
-            if (subAsset == null) return;
-            subAsset.name = name;
-            AssetDatabase.AddObjectToAsset(subAsset, root);
-            EditorUtility.SetDirty(subAsset);
+            GameContentAuthoringEditorAssets.AddSubAsset(subAsset, root, name);
         }
 
         private static bool HasDuplicateAttackId(string attackId)
         {
-            if (string.IsNullOrWhiteSpace(attackId)) return false;
-            string[] guids = AssetDatabase.FindAssets("t:AttackDefinitionAsset");
-            for (int i = 0; i < guids.Length; i++)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                AttackDefinitionAsset asset = AssetDatabase.LoadAssetAtPath<AttackDefinitionAsset>(path);
-                if (asset != null && string.Equals(asset.Id, attackId, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-
-            return false;
+            return GameContentAuthoringEditorAssets.HasDuplicateId<AttackDefinitionAsset>(attackId, asset => asset.Id);
         }
 
         private static string[] SplitCsv(string csv)
         {
-            if (string.IsNullOrWhiteSpace(csv)) return Array.Empty<string>();
-            string[] parts = csv.Split(',');
-            var values = new List<string>();
-            for (int i = 0; i < parts.Length; i++)
-            {
-                string value = parts[i].Trim();
-                if (!string.IsNullOrWhiteSpace(value)) values.Add(value);
-            }
-
-            return values.ToArray();
+            return GameContentAuthoringEditorAssets.SplitCsv(csv);
         }
 
         private static string GetAttackFolder(AttackAuthoringState state)
@@ -621,78 +609,27 @@ namespace Deucarian.Attacks.Editor
 
         private static string SanitizePathSegment(string value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return "NewAttack";
-            char[] chars = value.Trim().ToCharArray();
-            for (int i = 0; i < chars.Length; i++)
-            {
-                char c = chars[i];
-                bool valid = char.IsLetterOrDigit(c) || c == '-' || c == '_' || c == '.';
-                chars[i] = valid ? c : '-';
-            }
-
-            return new string(chars);
+            return GameContentAuthoringEditorPaths.SanitizePathSegment(value, "NewAttack");
         }
 
         private static bool IsValidAssetFolderPath(string path)
         {
-            string normalized = NormalizeAssetFolderPath(path);
-            if (string.IsNullOrWhiteSpace(normalized)) return false;
-            if (!string.Equals(normalized, "Assets", StringComparison.OrdinalIgnoreCase) && !normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            string[] parts = normalized.Split('/');
-            for (int i = 0; i < parts.Length; i++)
-            {
-                string part = parts[i];
-                if (string.IsNullOrWhiteSpace(part) || part == "." || part == ".." || HasInvalidAssetPathChars(part))
-                    return false;
-            }
-
-            return true;
+            return GameContentAuthoringEditorPaths.IsValidAssetFolderPath(path, "Assets/GameContent/Attacks");
         }
 
         private static string EnsureFolder(string folder)
         {
-            folder = NormalizeAssetFolderPath(folder);
-            if (string.Equals(folder, "Assets", StringComparison.OrdinalIgnoreCase)) return "Assets";
-            string[] parts = folder.Split('/');
-            string current = parts[0];
-            for (int i = 1; i < parts.Length; i++)
-            {
-                string next = current + "/" + parts[i];
-                if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
-                current = next;
-            }
-
-            return folder;
+            return GameContentAuthoringEditorPaths.EnsureFolder(folder, "Assets/GameContent/Attacks");
         }
 
         private static bool FolderContainsAssets(string folder)
         {
-            if (!AssetDatabase.IsValidFolder(folder)) return false;
-            return AssetDatabase.FindAssets(string.Empty, new[] { folder }).Length > 0;
+            return GameContentAuthoringEditorPaths.FolderContainsAssets(folder);
         }
 
         private static string NormalizeAssetFolderPath(string path)
         {
-            string normalized = string.IsNullOrWhiteSpace(path)
-                ? "Assets/GameContent/Attacks"
-                : path.Trim().Replace("\\", "/");
-            while (normalized.Contains("//")) normalized = normalized.Replace("//", "/");
-            return normalized.TrimEnd('/');
-        }
-
-        private static bool HasInvalidAssetPathChars(string value)
-        {
-            for (int i = 0; i < value.Length; i++)
-            {
-                char c = value[i];
-                if (c == '<' || c == '>' || c == ':' || c == '"' || c == '|' || c == '?' || c == '*')
-                    return true;
-            }
-
-            return false;
+            return GameContentAuthoringEditorPaths.NormalizeAssetFolderPath(path, "Assets/GameContent/Attacks");
         }
 
         private static string GetDeliverySummary(AttackAuthoringState state)
@@ -719,7 +656,7 @@ namespace Deucarian.Attacks.Editor
 
         private static void DestroyTransientObject(UnityEngine.Object target)
         {
-            if (target != null) UnityEngine.Object.DestroyImmediate(target);
+            GameContentAuthoringEditorAssets.DestroyTransientObject(target);
         }
     }
 }
