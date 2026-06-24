@@ -59,8 +59,7 @@ namespace Deucarian.Attacks.Editor
                 GUILayout.Space(6f);
                 DrawValidation(report, "Ready to create one root EnemyDefinition asset with stats and presentation sub-assets.");
                 GUILayout.Space(8f);
-                GUI.enabled = report.IsValid;
-                if (GUILayout.Button("Create Enemy Asset", _primaryButton, GUILayout.Height(30f)))
+                if (DrawCreateButton("Create Enemy Asset", report.IsValid))
                 {
                     _lastResult = EnemyDefinitionAssetCreator.CreateAssets(state);
                     if (_lastResult.CreatedRoot != null)
@@ -70,7 +69,6 @@ namespace Deucarian.Attacks.Editor
                     }
                 }
 
-                GUI.enabled = true;
                 DrawLastResult();
             });
         }
@@ -115,8 +113,7 @@ namespace Deucarian.Attacks.Editor
                 GUILayout.Space(6f);
                 DrawValidation(report, "Ready to create one root WaveDefinition asset with schedule and entries sub-assets.");
                 GUILayout.Space(8f);
-                GUI.enabled = report.IsValid;
-                if (GUILayout.Button("Create Wave Asset", _primaryButton, GUILayout.Height(30f)))
+                if (DrawCreateButton("Create Wave Asset", report.IsValid))
                 {
                     _lastResult = WaveDefinitionAssetCreator.CreateAssets(state);
                     if (_lastResult.CreatedRoot != null)
@@ -126,7 +123,6 @@ namespace Deucarian.Attacks.Editor
                     }
                 }
 
-                GUI.enabled = true;
                 DrawLastResult();
             });
         }
@@ -139,15 +135,14 @@ namespace Deucarian.Attacks.Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     EditorGUILayout.LabelField("Entry " + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), _sectionTitle);
-                    GUI.enabled = state.Entries.Count > 1;
-                    if (GUILayout.Button("Remove", GUILayout.Width(72f)))
+                    using (new EditorGUI.DisabledScope(state.Entries.Count <= 1))
                     {
-                        state.Entries.RemoveAt(index);
-                        GUI.enabled = true;
-                        return;
+                        if (GUILayout.Button("Remove", GUILayout.Width(72f)))
+                        {
+                            state.Entries.RemoveAt(index);
+                            return;
+                        }
                     }
-
-                    GUI.enabled = true;
                 }
 
                 entry.Enemy = (EnemyDefinitionAsset)EditorGUILayout.ObjectField("Enemy", entry.Enemy, typeof(EnemyDefinitionAsset), false);
@@ -158,25 +153,6 @@ namespace Deucarian.Attacks.Editor
                 entry.SpawnChannelId = EditorGUILayout.TextField("Lane / Channel", entry.SpawnChannelId);
                 entry.ScalingTier = EditorGUILayout.IntField("Difficulty Tier", entry.ScalingTier);
             }
-        }
-
-        private string DrawOutputRootField(string outputRoot)
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                DefaultAsset asset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(outputRoot);
-                DefaultAsset next = (DefaultAsset)EditorGUILayout.ObjectField("Output Root", asset, typeof(DefaultAsset), false);
-                if (next != asset && next != null)
-                {
-                    string path = AssetDatabase.GetAssetPath(next);
-                    if (AssetDatabase.IsValidFolder(path)) outputRoot = path;
-                }
-
-                if (GUILayout.Button(new GUIContent("Ping", "Ping output root"), GUILayout.Width(48f)) && asset != null)
-                    EditorGUIUtility.PingObject(asset);
-            }
-
-            return EditorGUILayout.TextField("Output Path", outputRoot);
         }
 
         private void DrawValidation(ContentAuthoringValidationReport report, string readyMessage)

@@ -329,6 +329,26 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void EnemyDefinitionValidation_RejectsInvalidStats()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                "enemy.authoring.invalid-stats",
+                "Invalid Stats",
+                EnemyRole.Basic,
+                -1f,
+                0f,
+                -1,
+                float.NaN,
+                string.Empty,
+                collisionRadius: 0f);
+
+            ContentAuthoringValidationReport report = EnemyDefinitionValidator.Validate(enemy, EnemyDefinitionValidationOptions.RuntimeFriendly);
+
+            Assert.IsFalse(report.IsValid);
+            Assert.That(report.ErrorCount, Is.GreaterThanOrEqualTo(5));
+        }
+
+        [Test]
         public void EnemyPresentationInvoker_GracefullyHandlesMissingOptionalAssets()
         {
             EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
@@ -360,6 +380,53 @@ namespace Deucarian.Attacks.Tests
                 "Invalid",
                 0,
                 new[] { new WaveEntryRecipe(null, 3, 1, 0, 10, "perimeter-north") });
+
+            ContentAuthoringValidationReport report = WaveDefinitionValidator.Validate(wave);
+
+            Assert.IsFalse(report.IsValid);
+        }
+
+        [Test]
+        public void WaveDefinitionValidation_RejectsInvalidEntryNumbers()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                "enemy.authoring.valid-for-invalid-wave",
+                "Valid Enemy",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value);
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.invalid-numbers",
+                "Invalid Numbers",
+                -1,
+                new[] { new WaveEntryRecipe(enemy, 0, 0, -1, -1, string.Empty, -1) });
+
+            ContentAuthoringValidationReport report = WaveDefinitionValidator.Validate(wave);
+
+            Assert.IsFalse(report.IsValid);
+            Assert.That(report.ErrorCount, Is.GreaterThanOrEqualTo(6));
+        }
+
+        [Test]
+        public void WaveDefinitionValidation_RejectsInvalidReferencedEnemy()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                string.Empty,
+                "Invalid Enemy",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value);
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.invalid-enemy",
+                "Invalid Enemy Ref",
+                0,
+                new[] { new WaveEntryRecipe(enemy, 2, 1, 0, 10, "perimeter-north") });
 
             ContentAuthoringValidationReport report = WaveDefinitionValidator.Validate(wave);
 

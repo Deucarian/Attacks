@@ -105,7 +105,7 @@ namespace Deucarian.Attacks.Editor
         {
             return EditorUtility.DisplayDialog(
                 "Use Existing " + contentName + " Folder?",
-                "The folder already contains assets:\n\n" + folder + "\n\nCreate this " + contentName.ToLowerInvariant() + " root asset in that folder?",
+                "The folder already contains assets:\n\n" + folder + "\n\nCreate this " + contentName.ToLowerInvariant() + " root asset in that folder?\n\nNo existing assets will be overwritten.",
                 "Create Here",
                 "Cancel");
         }
@@ -175,6 +175,27 @@ namespace Deucarian.Attacks.Editor
                 issues.Add(ContentAuthoringValidationIssue.Error(pathLabel, "An asset already exists at " + rootPath + ". Rename the " + contentName.ToLowerInvariant() + " or edit the existing asset."));
             else if (AssetDatabase.IsValidFolder(folder) && GameContentAuthoringEditorPaths.FolderContainsAssets(folder))
                 issues.Add(ContentAuthoringValidationIssue.Warning(pathLabel, "The " + contentName.ToLowerInvariant() + " folder already contains assets. Creation will ask for confirmation before adding this root asset."));
+        }
+
+        public static void AddAttackPathIssues(
+            List<AttackRecipeValidationIssue> issues,
+            string outputRoot,
+            string defaultRoot,
+            string folder,
+            string rootPath,
+            string contentName,
+            string pathLabel)
+        {
+            if (!GameContentAuthoringEditorPaths.IsValidAssetFolderPath(outputRoot, defaultRoot))
+            {
+                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Output root must be Assets or a folder below Assets, without empty or parent-directory segments.", pathLabel));
+                return;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath) != null)
+                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "An asset already exists at " + rootPath + ". Rename the " + contentName.ToLowerInvariant() + " or edit the existing asset.", pathLabel));
+            else if (AssetDatabase.IsValidFolder(folder) && GameContentAuthoringEditorPaths.FolderContainsAssets(folder))
+                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Warning, "The " + contentName.ToLowerInvariant() + " folder already contains assets. Creation will ask for confirmation before adding this root asset.", pathLabel));
         }
     }
 }

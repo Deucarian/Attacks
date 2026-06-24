@@ -73,7 +73,7 @@ namespace Deucarian.Attacks.Editor
                     GUI.enabled = provider.Enabled;
                     GUIStyle style = i == _selectedProvider ? _selectedProviderButton : _providerButton;
                     if (GUILayout.Button(new GUIContent(provider.DisplayName, provider.Description), style, GUILayout.Height(44f)))
-                        _selectedProvider = i;
+                        SelectProvider(i);
                     GUI.enabled = true;
                 }
 
@@ -102,7 +102,7 @@ namespace Deucarian.Attacks.Editor
                 state.DisplayName = EditorGUILayout.TextField("Display Name", state.DisplayName);
                 state.Icon = (Sprite)EditorGUILayout.ObjectField("Icon", state.Icon, typeof(Sprite), false);
                 state.TagsCsv = EditorGUILayout.TextField("Tags", state.TagsCsv);
-                DrawFolderField(state);
+                state.OutputRoot = DrawOutputRootField(state.OutputRoot);
             });
 
             DrawSection("Mechanics", () =>
@@ -176,8 +176,7 @@ namespace Deucarian.Attacks.Editor
                 GUILayout.Space(6f);
                 DrawValidation(report);
                 GUILayout.Space(8f);
-                GUI.enabled = report.IsValid;
-                if (GUILayout.Button("Create Attack Asset", _primaryButton, GUILayout.Height(30f)))
+                if (DrawCreateButton("Create Attack Asset", report.IsValid))
                 {
                     _lastResult = AttackRecipeAssetCreator.CreateAssets(state);
                     if (_lastResult.CreatedRoot != null)
@@ -187,28 +186,27 @@ namespace Deucarian.Attacks.Editor
                     }
                 }
 
-                GUI.enabled = true;
                 DrawLastResult();
             });
         }
 
-        private void DrawFolderField(AttackAuthoringState state)
+        private string DrawOutputRootField(string outputRoot)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                DefaultAsset asset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(state.OutputRoot);
+                DefaultAsset asset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(outputRoot);
                 DefaultAsset next = (DefaultAsset)EditorGUILayout.ObjectField("Output Root", asset, typeof(DefaultAsset), false);
                 if (next != asset && next != null)
                 {
                     string path = AssetDatabase.GetAssetPath(next);
-                    if (AssetDatabase.IsValidFolder(path)) state.OutputRoot = path;
+                    if (AssetDatabase.IsValidFolder(path)) outputRoot = path;
                 }
 
                 if (GUILayout.Button(new GUIContent("Ping", "Ping output root"), GUILayout.Width(48f)) && asset != null)
                     EditorGUIUtility.PingObject(asset);
             }
 
-            state.OutputRoot = EditorGUILayout.TextField("Output Path", state.OutputRoot);
+            return EditorGUILayout.TextField("Output Path", outputRoot);
         }
 
         private void DrawValidation(AttackRecipeValidationReport report)
@@ -255,6 +253,15 @@ namespace Deucarian.Attacks.Editor
             }
         }
 
+        private bool DrawCreateButton(string label, bool enabled)
+        {
+            var content = new GUIContent(
+                label,
+                enabled ? "Create the root asset and linked section assets." : "Fix blocking validation issues before creating this asset.");
+            using (new EditorGUI.DisabledScope(!enabled))
+                return GUILayout.Button(content, _primaryButton, GUILayout.Height(30f));
+        }
+
         private void DrawSection(string title, Action draw)
         {
             using (new EditorGUILayout.VerticalScope(_card))
@@ -280,6 +287,15 @@ namespace Deucarian.Attacks.Editor
             _selectedProviderButton.normal.background = Texture2D.grayTexture;
             _primaryButton = new GUIStyle(EditorStyles.miniButton) { fontStyle = FontStyle.Bold };
             _stylesReady = true;
+        }
+
+        private void SelectProvider(int index)
+        {
+            if (_selectedProvider == index) return;
+            _selectedProvider = index;
+            _lastResult = null;
+            _scroll = Vector2.zero;
+            GUI.FocusControl(null);
         }
 
         private interface IGameContentAuthoringProvider
@@ -392,20 +408,9 @@ namespace Deucarian.Attacks.Editor
         public static AttackRecipeValidationReport ValidateForCreation(AttackAuthoringState state, AttackDefinitionAsset recipe)
         {
             var issues = new List<AttackRecipeValidationIssue>(AttackRecipeValidator.Validate(recipe, AttackRecipeValidationOptions.AssetCreation).Issues);
-            if (!IsValidAssetFolderPath(state.OutputRoot))
-            {
-                issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Output root must be Assets or a folder below Assets, without empty or parent-directory segments.", "OutputRoot"));
-            }
-            else
-            {
-                string folder = GetAttackFolder(state);
-                string rootPath = folder + "/" + GetFileStem(state) + "_AttackDefinition.asset";
-                if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath) != null)
-                    issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "An asset already exists at " + rootPath + ". Rename the attack or edit the existing asset.", "OutputRoot"));
-                else if (AssetDatabase.IsValidFolder(folder) && FolderContainsAssets(folder))
-                    issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Warning, "The attack folder already contains assets. Creation will ask for confirmation before adding this root asset.", "OutputRoot"));
-            }
-
+            string folder = GetAttackFolder(state);
+            string rootPath = folder + "/" + GetFileStem(state) + "_AttackDefinition.asset";
+            GameContentAuthoringEditorAssets.AddAttackPathIssues(issues, state.OutputRoot, "Assets/GameContent/Attacks", folder, rootPath, "Attack", "OutputRoot");
             if (HasDuplicateAttackId(state.AttackId))
                 issues.Add(new AttackRecipeValidationIssue(AttackRecipeValidationSeverity.Error, "Attack IDs must be unique. Rename this attack or edit the existing asset instead of creating another.", "Attack.Id"));
             return new AttackRecipeValidationReport(issues);
@@ -610,11 +615,6 @@ namespace Deucarian.Attacks.Editor
         private static string SanitizePathSegment(string value)
         {
             return GameContentAuthoringEditorPaths.SanitizePathSegment(value, "NewAttack");
-        }
-
-        private static bool IsValidAssetFolderPath(string path)
-        {
-            return GameContentAuthoringEditorPaths.IsValidAssetFolderPath(path, "Assets/GameContent/Attacks");
         }
 
         private static string EnsureFolder(string folder)
