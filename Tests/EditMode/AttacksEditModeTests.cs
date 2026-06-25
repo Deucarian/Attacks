@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Deucarian.Attacks.Editor;
 using Deucarian.Attacks.Authoring;
 using Deucarian.Combat;
 using Deucarian.DefenseGames;
@@ -12,7 +13,9 @@ using Deucarian.GameplayFoundation;
 using Deucarian.WorldNavigation;
 using Deucarian.WorldSpawning;
 using NUnit.Framework;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Deucarian.Attacks.Tests
 {
@@ -324,6 +327,91 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void SharedGameContentAuthoringSurface_ProvidersExposeSafePreviewLifecycle()
+        {
+            foreach (IGameContentAuthoringProvider provider in GameContentAuthoringProviderRegistry.Providers)
+            {
+                if (!provider.ProviderId.StartsWith("com.deucarian.attacks.", StringComparison.Ordinal))
+                    continue;
+
+                Assert.DoesNotThrow(provider.StopPreview);
+            }
+        }
+
+        [Test]
+        public void AttackPreviewSummaries_IncludeCombatPresentationAndExpectedResult()
+        {
+            var state = new AttackAuthoringState
+            {
+                IncludeStatusEffect = true,
+                StatusId = "status.preview.burning",
+                DeliveryMode = AttackRecipeDeliveryMode.Hitscan,
+                BeamVfxPrefab = null,
+                DamageAmount = 12.5f,
+                DamageTypeId = "damage.preview.fire"
+            };
+
+            IReadOnlyList<GameContentAuthoringPreviewRow> rows = AttackGameContentPreviewSummaries.BuildAttackRows(state);
+            IReadOnlyList<GameContentAuthoringPreviewRow> presentation = AttackGameContentPreviewSummaries.BuildAttackPresentationRows(state);
+            IReadOnlyList<GameContentAuthoringPreviewRow> expected = AttackGameContentPreviewSummaries.BuildAttackExpectedRows(state);
+
+            AssertRowContains(rows, "Damage", "12.5 damage.preview.fire");
+            AssertRowContains(rows, "Delivery", "Hitscan");
+            AssertRowContains(rows, "Status", "status.preview.burning");
+            AssertRowContains(presentation, "OnTick", "no audio");
+            AssertRowContains(expected, "Expected", "status.preview.burning");
+        }
+
+        [Test]
+        public void PreviewActions_HandleMissingOptionalAssetsWithoutThrowing()
+        {
+            var attack = new AttackAuthoringState { IncludeStatusEffect = true };
+            var enemy = new EnemyAuthoringState();
+            var wave = new WaveAuthoringState();
+
+            Assert.DoesNotThrow(() => AttackGameContentPreviewActions.PreviewAttackEvent(attack, AttackPresentationEventKind.OnImpact));
+            Assert.DoesNotThrow(() => AttackGameContentPreviewActions.PreviewAttackEvent(attack, AttackPresentationEventKind.OnTick));
+            Assert.DoesNotThrow(() => AttackGameContentPreviewActions.PreviewEnemyEvent(enemy, EnemyPresentationEventKind.OnSpawn));
+            Assert.DoesNotThrow(() => AttackGameContentPreviewActions.PreviewWaveTimeline(wave));
+
+            StringAssert.Contains("no audio clip assigned", AttackGameContentPreviewActions.PreviewAttackEvent(attack, AttackPresentationEventKind.OnImpact));
+            StringAssert.Contains("no audio clip assigned", AttackGameContentPreviewActions.PreviewEnemyEvent(enemy, EnemyPresentationEventKind.OnSpawn));
+        }
+
+        [Test]
+        public void WavePreviewSummaries_ReportMissingEnemyReferencesAndTiming()
+        {
+            var state = new WaveAuthoringState();
+            state.Entries.Clear();
+            state.Entries.Add(new WaveEntryAuthoringState { Count = 5, BatchSize = 2, InitialDelayTicks = 3, IntervalTicks = 10, SpawnChannelId = "perimeter-west", ScalingTier = 2 });
+
+            IReadOnlyList<GameContentAuthoringPreviewRow> rows = AttackGameContentPreviewSummaries.BuildWaveRows(state);
+            IReadOnlyList<GameContentAuthoringPreviewTimelineItem> timeline = AttackGameContentPreviewSummaries.BuildWaveTimeline(state);
+            IReadOnlyList<string> warnings = AttackGameContentPreviewSummaries.BuildWaveWarnings(state);
+
+            AssertRowContains(rows, "Total Enemies", "5");
+            AssertRowContains(rows, "Approx Duration", "23 tick(s)");
+            Assert.AreEqual(1, timeline.Count);
+            StringAssert.Contains("Missing enemy", timeline[0].Label);
+            Assert.That(warnings, Has.Some.Contains("enemy reference is missing"));
+        }
+
+        [Test]
+        public void PreviewStop_DoesNotDirtyActiveScene()
+        {
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            bool wasDirty = scene.isDirty;
+
+            foreach (IGameContentAuthoringProvider provider in GameContentAuthoringProviderRegistry.Providers)
+            {
+                if (provider.ProviderId.StartsWith("com.deucarian.attacks.", StringComparison.Ordinal))
+                    provider.StopPreview();
+            }
+
+            Assert.AreEqual(wasDirty, scene.isDirty);
+        }
+
+        [Test]
         public void EnemyDefinitionValidation_RequiresPrefabForAssetCreationOnly()
         {
             EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
@@ -521,6 +609,18 @@ namespace Deucarian.Attacks.Tests
             b.AppendLine("  ]");
             b.AppendLine("}");
             return b.ToString();
+        }
+
+        private static void AssertRowContains(IReadOnlyList<GameContentAuthoringPreviewRow> rows, string label, string expectedValuePart)
+        {
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (!string.Equals(rows[i].Label, label, StringComparison.Ordinal)) continue;
+                StringAssert.Contains(expectedValuePart, rows[i].Value);
+                return;
+            }
+
+            Assert.Fail("Expected preview row '" + label + "' was not found.");
         }
 
         private static AttackRuntime Runtime(AttackDefinition definition) => new AttackRuntime(Catalog(), new[] { definition });
