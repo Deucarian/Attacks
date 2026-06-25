@@ -238,7 +238,7 @@ namespace Deucarian.Attacks.Editor
                     DrawWaveEntry(context, i);
 
                 GUILayout.Space(4f);
-                if (GUILayout.Button("Add Entry", GUILayout.Height(24f)))
+                if (context.DrawSecondaryButton("Add Entry", true, GUILayout.Height(24f)))
                     _state.Entries.Add(new WaveEntryAuthoringState());
             });
 
@@ -258,20 +258,20 @@ namespace Deucarian.Attacks.Editor
         private void DrawWaveEntry(GameContentAuthoringContext context, int index)
         {
             WaveEntryAuthoringState entry = _state.Entries[index];
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            bool remove = false;
+            context.DrawInlineCard(() =>
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     EditorGUILayout.LabelField("Entry " + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), context.SectionTitleStyle);
-                    using (new EditorGUI.DisabledScope(_state.Entries.Count <= 1))
+                    if (context.DrawSecondaryButton("Remove", _state.Entries.Count > 1, GUILayout.Width(72f)))
                     {
-                        if (GUILayout.Button("Remove", GUILayout.Width(72f)))
-                        {
-                            _state.Entries.RemoveAt(index);
-                            return;
-                        }
+                        remove = true;
                     }
                 }
+
+                if (remove)
+                    return;
 
                 entry.Enemy = (EnemyDefinitionAsset)EditorGUILayout.ObjectField("Enemy", entry.Enemy, typeof(EnemyDefinitionAsset), false);
                 entry.Count = EditorGUILayout.IntField("Count", entry.Count);
@@ -280,7 +280,10 @@ namespace Deucarian.Attacks.Editor
                 entry.IntervalTicks = EditorGUILayout.IntField("Interval Ticks", entry.IntervalTicks);
                 entry.SpawnChannelId = EditorGUILayout.TextField("Lane / Channel", entry.SpawnChannelId);
                 entry.ScalingTier = EditorGUILayout.IntField("Difficulty Tier", entry.ScalingTier);
-            }
+            });
+
+            if (remove)
+                _state.Entries.RemoveAt(index);
         }
     }
 

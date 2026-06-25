@@ -31,7 +31,7 @@ Package samples may store the same sections as sibling `.asset` files because `S
 
 ## Creating An Attack
 
-1. Open `Deucarian/Game Content Authoring`.
+1. Open `Tools/Deucarian/Game Content Authoring`.
 2. Select `Attack`.
 3. Set a stable attack ID. Use a namespaced value such as `attack.project.fire-orb`; this ID is what weapons and gameplay glue should reference.
 4. Choose an output root under `Assets`, usually `Assets/GameContent/Attacks`.
@@ -50,7 +50,7 @@ The wizard refuses to overwrite an existing root asset. If the target attack fol
 
 ## Creating An Enemy
 
-1. Open `Deucarian/Game Content Authoring`.
+1. Open `Tools/Deucarian/Game Content Authoring`.
 2. Select `Enemy`.
 3. Set a stable enemy ID such as `enemy.project.fast`.
 4. Choose an output root under `Assets`, usually `Assets/GameContent/Enemies`.
@@ -69,7 +69,7 @@ The wizard blocks duplicate enemy IDs, invalid stats, missing required prefabs, 
 
 ## Creating A Wave
 
-1. Open `Deucarian/Game Content Authoring`.
+1. Open `Tools/Deucarian/Game Content Authoring`.
 2. Select `Wave`.
 3. Set a stable wave ID such as `wave.project.early`.
 4. Choose an output root under `Assets`, usually `Assets/GameContent/Waves`.

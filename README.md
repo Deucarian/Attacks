@@ -6,7 +6,7 @@ Attacks answers who can attack, when they can attack, which supplied candidate s
 
 ## Game Content Authoring
 
-The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Install Attacks and open `Deucarian/Game Content Authoring`; the shared window comes from `com.deucarian.game-content-authoring`, while the domain-specific creation logic stays in Attacks.
+The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Install Attacks and open `Tools/Deucarian/Game Content Authoring`; the shared window comes from `com.deucarian.game-content-authoring`, while the domain-specific creation logic stays in Attacks.
 
 An authored attack is a root `AttackDefinitionAsset` plus focused section assets:
 
