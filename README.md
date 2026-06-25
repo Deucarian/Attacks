@@ -18,6 +18,8 @@ An authored attack is a root `AttackDefinitionAsset` plus focused section assets
 
 The shared window creates these sections as sub-assets under one root asset so designers work with one attack in the Project window without forcing every field into a single monolithic inspector. Runtime consumers convert the root asset to the existing pure C# `AttackDefinition` with `ToRuntimeDefinition()`, and optional presentation is invoked through `AttackPresentationRuntimeInvoker`.
 
+The authoring window's rich preview panel is editor-only. Attack previews summarize damage, targeting, delivery, status effects, expected dummy-target results, and OnCast/OnFire/OnImpact/OnTick/OnExpire audio/VFX hooks. Enemy previews show prefab/model thumbnails, stats, role, reward, and spawn/hit/death presentation hooks. Wave previews show total enemy count, approximate duration, channels, difficulty tier, missing references, and a spawn timeline. Preview thumbnails use Unity editor asset previews, and preview audio is best-effort; missing optional audio, VFX, and model references are reported instead of throwing or dirtying scenes.
+
 Authored enemies and waves follow the same root-plus-section pattern:
 
 - `EnemyDefinitionAsset` owns identity, role, tags, and links to `EnemyStatsDefinitionAsset` plus `EnemyPresentationDefinitionAsset`.

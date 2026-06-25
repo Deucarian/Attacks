@@ -21,6 +21,7 @@ namespace Deucarian.Attacks.Editor
     internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider
     {
         private readonly AttackAuthoringState _state = new AttackAuthoringState();
+        private readonly AttackGameContentPreviewController _preview = new AttackGameContentPreviewController();
 
         public string ProviderId => "com.deucarian.attacks.attack";
         public string DisplayName => "Attack";
@@ -28,6 +29,8 @@ namespace Deucarian.Attacks.Editor
         public int SortOrder => 100;
         public bool Enabled => true;
         public void OnSelected() { }
+        public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
+        public void StopPreview() { _preview.Stop(); }
 
         public void Draw(GameContentAuthoringContext context)
         {
@@ -110,9 +113,13 @@ namespace Deucarian.Attacks.Editor
                 _state.CastAudio = (AudioClip)EditorGUILayout.ObjectField("OnCast Audio", _state.CastAudio, typeof(AudioClip), false);
                 _state.FireAudio = (AudioClip)EditorGUILayout.ObjectField("OnFire Audio", _state.FireAudio, typeof(AudioClip), false);
                 _state.ImpactAudio = (AudioClip)EditorGUILayout.ObjectField("OnImpact Audio", _state.ImpactAudio, typeof(AudioClip), false);
+                _state.TickAudio = (AudioClip)EditorGUILayout.ObjectField("OnTick Audio", _state.TickAudio, typeof(AudioClip), false);
+                _state.ExpireAudio = (AudioClip)EditorGUILayout.ObjectField("OnExpire Audio", _state.ExpireAudio, typeof(AudioClip), false);
                 _state.CastVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnCast VFX", _state.CastVfxPrefab, typeof(GameObject), false);
                 _state.FireVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnFire VFX", _state.FireVfxPrefab, typeof(GameObject), false);
                 _state.ImpactVfxPresentationPrefab = (GameObject)EditorGUILayout.ObjectField("OnImpact VFX", _state.ImpactVfxPresentationPrefab, typeof(GameObject), false);
+                _state.TickVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnTick VFX", _state.TickVfxPrefab, typeof(GameObject), false);
+                _state.ExpireVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnExpire VFX", _state.ExpireVfxPrefab, typeof(GameObject), false);
             });
 
             context.DrawSection("Preview", () =>
@@ -132,6 +139,7 @@ namespace Deucarian.Attacks.Editor
     internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider
     {
         private readonly EnemyAuthoringState _state = new EnemyAuthoringState();
+        private readonly EnemyGameContentPreviewController _preview = new EnemyGameContentPreviewController();
 
         public string ProviderId => "com.deucarian.attacks.enemy";
         public string DisplayName => "Enemy";
@@ -139,6 +147,8 @@ namespace Deucarian.Attacks.Editor
         public int SortOrder => 110;
         public bool Enabled => true;
         public void OnSelected() { }
+        public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
+        public void StopPreview() { _preview.Stop(); }
 
         public void Draw(GameContentAuthoringContext context)
         {
@@ -201,6 +211,7 @@ namespace Deucarian.Attacks.Editor
     internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider
     {
         private readonly WaveAuthoringState _state = new WaveAuthoringState();
+        private readonly WaveGameContentPreviewController _preview = new WaveGameContentPreviewController();
 
         public string ProviderId => "com.deucarian.attacks.wave";
         public string DisplayName => "Wave";
@@ -208,6 +219,8 @@ namespace Deucarian.Attacks.Editor
         public int SortOrder => 120;
         public bool Enabled => true;
         public void OnSelected() { }
+        public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
+        public void StopPreview() { _preview.Stop(); }
 
         public void Draw(GameContentAuthoringContext context)
         {
@@ -324,9 +337,13 @@ namespace Deucarian.Attacks.Editor
         public AudioClip CastAudio;
         public AudioClip FireAudio;
         public AudioClip ImpactAudio;
+        public AudioClip TickAudio;
+        public AudioClip ExpireAudio;
         public GameObject CastVfxPrefab;
         public GameObject FireVfxPrefab;
         public GameObject ImpactVfxPresentationPrefab;
+        public GameObject TickVfxPrefab;
+        public GameObject ExpireVfxPrefab;
     }
 
     internal sealed class EnemyAuthoringState
@@ -563,8 +580,8 @@ namespace Deucarian.Attacks.Editor
                 new AttackPresentationEventRecipe(AttackPresentationEventKind.OnCast, state.CastAudio, state.CastVfxPrefab, AttackPresentationSpawnPointRole.Caster),
                 new AttackPresentationEventRecipe(AttackPresentationEventKind.OnFire, state.FireAudio, state.FireVfxPrefab, AttackPresentationSpawnPointRole.Muzzle),
                 new AttackPresentationEventRecipe(AttackPresentationEventKind.OnImpact, state.ImpactAudio, state.ImpactVfxPresentationPrefab, AttackPresentationSpawnPointRole.ImpactPoint),
-                new AttackPresentationEventRecipe(AttackPresentationEventKind.OnTick, spawnPointRole: AttackPresentationSpawnPointRole.Target),
-                new AttackPresentationEventRecipe(AttackPresentationEventKind.OnExpire, spawnPointRole: AttackPresentationSpawnPointRole.ImpactPoint)
+                new AttackPresentationEventRecipe(AttackPresentationEventKind.OnTick, state.TickAudio, state.TickVfxPrefab, AttackPresentationSpawnPointRole.Target),
+                new AttackPresentationEventRecipe(AttackPresentationEventKind.OnExpire, state.ExpireAudio, state.ExpireVfxPrefab, AttackPresentationSpawnPointRole.ImpactPoint)
             };
         }
 
