@@ -30,20 +30,25 @@ namespace Deucarian.Attacks.Editor
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (context.DrawSecondaryButton("OnCast", true, GUILayout.Height(24f)))
+                    if (context.DrawSecondaryButton("Preview OnCast", true, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewAttackEvent(state, AttackPresentationEventKind.OnCast));
-                    if (context.DrawSecondaryButton("OnFire", true, GUILayout.Height(24f)))
+                    if (context.DrawSecondaryButton("Preview OnFire", true, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewAttackEvent(state, AttackPresentationEventKind.OnFire));
-                    if (context.DrawSecondaryButton("OnImpact", true, GUILayout.Height(24f)))
-                        SetStatus(context, AttackGameContentPreviewActions.PreviewAttackEvent(state, AttackPresentationEventKind.OnImpact));
                 }
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     bool statusEnabled = state != null && state.IncludeStatusEffect;
-                    if (context.DrawSecondaryButton("Status Tick", statusEnabled, GUILayout.Height(24f)))
+                    if (context.DrawSecondaryButton("Preview OnImpact", true, GUILayout.Height(24f)))
+                        SetStatus(context, AttackGameContentPreviewActions.PreviewAttackEvent(state, AttackPresentationEventKind.OnImpact));
+                    if (context.DrawSecondaryButton("Preview Status Tick", statusEnabled, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewAttackEvent(state, AttackPresentationEventKind.OnTick));
-                    if (context.DrawSecondaryButton("OnExpire", statusEnabled, GUILayout.Height(24f)))
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    bool statusEnabled = state != null && state.IncludeStatusEffect;
+                    if (context.DrawSecondaryButton("Preview OnExpire", statusEnabled, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewAttackEvent(state, AttackPresentationEventKind.OnExpire));
                 }
 
@@ -107,13 +112,17 @@ namespace Deucarian.Attacks.Editor
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (context.DrawSecondaryButton("Spawn", true, GUILayout.Height(24f)))
+                    if (context.DrawSecondaryButton("Preview Spawn", true, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewEnemyEvent(state, EnemyPresentationEventKind.OnSpawn));
-                    if (context.DrawSecondaryButton("Hit", true, GUILayout.Height(24f)))
+                    if (context.DrawSecondaryButton("Preview Hit", true, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewEnemyEvent(state, EnemyPresentationEventKind.OnHit));
-                    if (context.DrawSecondaryButton("Death", true, GUILayout.Height(24f)))
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (context.DrawSecondaryButton("Preview Death", true, GUILayout.Height(24f)))
                         SetStatus(context, AttackGameContentPreviewActions.PreviewEnemyEvent(state, EnemyPresentationEventKind.OnDeath));
-                    if (context.DrawSecondaryButton("Stop", true, GUILayout.Width(64f), GUILayout.Height(24f)))
+                    if (context.DrawSecondaryButton("Stop Preview", true, GUILayout.Height(24f)))
                         Stop(context);
                 }
 
