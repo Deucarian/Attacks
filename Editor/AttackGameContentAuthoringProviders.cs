@@ -47,79 +47,79 @@ namespace Deucarian.Attacks.Editor
 
             context.DrawSection("Attack Identity", () =>
             {
-                _state.AttackId = EditorGUILayout.TextField("Stable ID", _state.AttackId);
-                _state.DisplayName = EditorGUILayout.TextField("Display Name", _state.DisplayName);
-                _state.Icon = (Sprite)EditorGUILayout.ObjectField("Icon", _state.Icon, typeof(Sprite), false);
-                _state.TagsCsv = EditorGUILayout.TextField("Tags", _state.TagsCsv);
+                _state.AttackId = context.DrawTextField("Stable ID", _state.AttackId);
+                _state.DisplayName = context.DrawTextField("Display Name", _state.DisplayName);
+                _state.Icon = context.DrawObjectField("Icon", _state.Icon);
+                _state.TagsCsv = context.DrawTextField("Tags", _state.TagsCsv);
                 _state.OutputRoot = context.DrawOutputRootField(_state.OutputRoot);
             });
 
             context.DrawSection("Mechanics", () =>
             {
-                _state.DamageTypeId = EditorGUILayout.TextField("Damage Type ID", _state.DamageTypeId);
-                _state.DamageAmount = EditorGUILayout.FloatField("Damage", _state.DamageAmount);
-                _state.CooldownTicks = EditorGUILayout.IntField("Cooldown Ticks", _state.CooldownTicks);
-                _state.Range = EditorGUILayout.FloatField("Range", _state.Range);
-                _state.TargetingMode = (AttackRecipeTargetingMode)EditorGUILayout.EnumPopup("Targeting", _state.TargetingMode);
+                _state.DamageTypeId = context.DrawTextField("Damage Type ID", _state.DamageTypeId);
+                _state.DamageAmount = context.DrawFloatField("Damage", _state.DamageAmount);
+                _state.CooldownTicks = context.DrawIntField("Cooldown Ticks", _state.CooldownTicks);
+                _state.Range = context.DrawFloatField("Range", _state.Range);
+                _state.TargetingMode = context.DrawEnumPopup("Targeting", _state.TargetingMode);
             });
 
             context.DrawSection("Delivery", () =>
             {
-                _state.DeliveryMode = (AttackRecipeDeliveryMode)EditorGUILayout.EnumPopup("Mode", _state.DeliveryMode);
+                _state.DeliveryMode = context.DrawEnumPopup("Mode", _state.DeliveryMode);
                 if (_state.DeliveryMode == AttackRecipeDeliveryMode.Projectile)
                 {
-                    _state.ProjectileDefinitionId = EditorGUILayout.TextField("Projectile ID", _state.ProjectileDefinitionId);
-                    _state.ProjectileSpawnableId = EditorGUILayout.TextField("Spawnable ID", _state.ProjectileSpawnableId);
-                    _state.ProjectilePrefab = (GameObject)EditorGUILayout.ObjectField("Projectile Prefab", _state.ProjectilePrefab, typeof(GameObject), false);
-                    _state.ProjectileSpeed = EditorGUILayout.FloatField("Speed", _state.ProjectileSpeed);
-                    _state.ProjectileLifetimeTicks = EditorGUILayout.IntField("Lifetime Ticks", _state.ProjectileLifetimeTicks);
-                    _state.Homing = EditorGUILayout.Toggle("Homing", _state.Homing);
-                    _state.HomingTurnRate = EditorGUILayout.FloatField("Turn Rate", _state.HomingTurnRate);
-                    _state.PierceCount = EditorGUILayout.IntField("Pierce Count", _state.PierceCount);
-                    _state.Radius = EditorGUILayout.FloatField("Radius", _state.Radius);
+                    _state.ProjectileDefinitionId = context.DrawTextField("Projectile ID", _state.ProjectileDefinitionId);
+                    _state.ProjectileSpawnableId = context.DrawTextField("Spawnable ID", _state.ProjectileSpawnableId);
+                    _state.ProjectilePrefab = context.DrawObjectField("Projectile Prefab", _state.ProjectilePrefab);
+                    _state.ProjectileSpeed = context.DrawFloatField("Speed", _state.ProjectileSpeed);
+                    _state.ProjectileLifetimeTicks = context.DrawIntField("Lifetime Ticks", _state.ProjectileLifetimeTicks);
+                    _state.Homing = context.DrawToggle("Homing", _state.Homing);
+                    _state.HomingTurnRate = context.DrawFloatField("Turn Rate", _state.HomingTurnRate);
+                    _state.PierceCount = context.DrawIntField("Pierce Count", _state.PierceCount);
+                    _state.Radius = context.DrawFloatField("Radius", _state.Radius);
                 }
                 else if (_state.DeliveryMode == AttackRecipeDeliveryMode.Hitscan)
                 {
-                    _state.BeamVfxPrefab = (GameObject)EditorGUILayout.ObjectField("Beam/Tracer VFX", _state.BeamVfxPrefab, typeof(GameObject), false);
-                    _state.ImpactVfxPrefab = (GameObject)EditorGUILayout.ObjectField("Impact VFX", _state.ImpactVfxPrefab, typeof(GameObject), false);
-                    _state.MaxHits = EditorGUILayout.IntField("Max Hits", _state.MaxHits);
+                    _state.BeamVfxPrefab = context.DrawObjectField("Beam/Tracer VFX", _state.BeamVfxPrefab);
+                    _state.ImpactVfxPrefab = context.DrawObjectField("Impact VFX", _state.ImpactVfxPrefab);
+                    _state.MaxHits = context.DrawIntField("Max Hits", _state.MaxHits);
                 }
                 else
                 {
-                    _state.Radius = EditorGUILayout.FloatField("Radius", _state.Radius);
-                    _state.MaxHits = EditorGUILayout.IntField("Max Hits", _state.MaxHits);
+                    _state.Radius = context.DrawFloatField("Radius", _state.Radius);
+                    _state.MaxHits = context.DrawIntField("Max Hits", _state.MaxHits);
                     if (_state.DeliveryMode == AttackRecipeDeliveryMode.Aura)
-                        _state.TickIntervalSeconds = EditorGUILayout.FloatField("Tick Interval", _state.TickIntervalSeconds);
+                        _state.TickIntervalSeconds = context.DrawFloatField("Tick Interval", _state.TickIntervalSeconds);
                 }
             });
 
             context.DrawSection("Status Effects", () =>
             {
-                _state.IncludeStatusEffect = EditorGUILayout.Toggle("Include Status", _state.IncludeStatusEffect);
+                _state.IncludeStatusEffect = context.DrawToggle("Include Status", _state.IncludeStatusEffect);
                 if (_state.IncludeStatusEffect)
                 {
-                    _state.StatusId = EditorGUILayout.TextField("Status ID", _state.StatusId);
-                    _state.StatusDurationTicks = EditorGUILayout.IntField("Duration Ticks", _state.StatusDurationTicks);
-                    _state.StatusTickRateTicks = EditorGUILayout.IntField("Tick Rate Ticks", _state.StatusTickRateTicks);
-                    _state.StatusStrength = EditorGUILayout.FloatField("Strength", _state.StatusStrength);
-                    _state.StatusMaxStacks = EditorGUILayout.IntField("Max Stacks", _state.StatusMaxStacks);
-                    _state.StatusStackingPolicy = (Deucarian.Combat.StatusStackingPolicy)EditorGUILayout.EnumPopup("Stacking", _state.StatusStackingPolicy);
-                    _state.StatusEffectNote = EditorGUILayout.TextField("Effect Note", _state.StatusEffectNote);
+                    _state.StatusId = context.DrawTextField("Status ID", _state.StatusId);
+                    _state.StatusDurationTicks = context.DrawIntField("Duration Ticks", _state.StatusDurationTicks);
+                    _state.StatusTickRateTicks = context.DrawIntField("Tick Rate Ticks", _state.StatusTickRateTicks);
+                    _state.StatusStrength = context.DrawFloatField("Strength", _state.StatusStrength);
+                    _state.StatusMaxStacks = context.DrawIntField("Max Stacks", _state.StatusMaxStacks);
+                    _state.StatusStackingPolicy = context.DrawEnumPopup("Stacking", _state.StatusStackingPolicy);
+                    _state.StatusEffectNote = context.DrawTextField("Effect Note", _state.StatusEffectNote);
                 }
             });
 
             context.DrawSection("Presentation", () =>
             {
-                _state.CastAudio = (AudioClip)EditorGUILayout.ObjectField("OnCast Audio", _state.CastAudio, typeof(AudioClip), false);
-                _state.FireAudio = (AudioClip)EditorGUILayout.ObjectField("OnFire Audio", _state.FireAudio, typeof(AudioClip), false);
-                _state.ImpactAudio = (AudioClip)EditorGUILayout.ObjectField("OnImpact Audio", _state.ImpactAudio, typeof(AudioClip), false);
-                _state.TickAudio = (AudioClip)EditorGUILayout.ObjectField("OnTick Audio", _state.TickAudio, typeof(AudioClip), false);
-                _state.ExpireAudio = (AudioClip)EditorGUILayout.ObjectField("OnExpire Audio", _state.ExpireAudio, typeof(AudioClip), false);
-                _state.CastVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnCast VFX", _state.CastVfxPrefab, typeof(GameObject), false);
-                _state.FireVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnFire VFX", _state.FireVfxPrefab, typeof(GameObject), false);
-                _state.ImpactVfxPresentationPrefab = (GameObject)EditorGUILayout.ObjectField("OnImpact VFX", _state.ImpactVfxPresentationPrefab, typeof(GameObject), false);
-                _state.TickVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnTick VFX", _state.TickVfxPrefab, typeof(GameObject), false);
-                _state.ExpireVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnExpire VFX", _state.ExpireVfxPrefab, typeof(GameObject), false);
+                _state.CastAudio = context.DrawObjectField("OnCast Audio", _state.CastAudio);
+                _state.FireAudio = context.DrawObjectField("OnFire Audio", _state.FireAudio);
+                _state.ImpactAudio = context.DrawObjectField("OnImpact Audio", _state.ImpactAudio);
+                _state.TickAudio = context.DrawObjectField("OnTick Audio", _state.TickAudio);
+                _state.ExpireAudio = context.DrawObjectField("OnExpire Audio", _state.ExpireAudio);
+                _state.CastVfxPrefab = context.DrawObjectField("OnCast VFX", _state.CastVfxPrefab);
+                _state.FireVfxPrefab = context.DrawObjectField("OnFire VFX", _state.FireVfxPrefab);
+                _state.ImpactVfxPresentationPrefab = context.DrawObjectField("OnImpact VFX", _state.ImpactVfxPresentationPrefab);
+                _state.TickVfxPrefab = context.DrawObjectField("OnTick VFX", _state.TickVfxPrefab);
+                _state.ExpireVfxPrefab = context.DrawObjectField("OnExpire VFX", _state.ExpireVfxPrefab);
             });
 
             context.DrawSection("Preview", () =>
@@ -165,33 +165,33 @@ namespace Deucarian.Attacks.Editor
 
             context.DrawSection("Enemy Identity", () =>
             {
-                _state.EnemyId = EditorGUILayout.TextField("Stable ID", _state.EnemyId);
-                _state.DisplayName = EditorGUILayout.TextField("Display Name", _state.DisplayName);
-                _state.Icon = (Sprite)EditorGUILayout.ObjectField("Icon", _state.Icon, typeof(Sprite), false);
-                _state.Role = (EnemyRole)EditorGUILayout.EnumPopup("Role", _state.Role);
-                _state.TagsCsv = EditorGUILayout.TextField("Tags", _state.TagsCsv);
+                _state.EnemyId = context.DrawTextField("Stable ID", _state.EnemyId);
+                _state.DisplayName = context.DrawTextField("Display Name", _state.DisplayName);
+                _state.Icon = context.DrawObjectField("Icon", _state.Icon);
+                _state.Role = context.DrawEnumPopup("Role", _state.Role);
+                _state.TagsCsv = context.DrawTextField("Tags", _state.TagsCsv);
                 _state.OutputRoot = context.DrawOutputRootField(_state.OutputRoot);
             });
 
             context.DrawSection("Stats", () =>
             {
-                _state.MaximumHealth = EditorGUILayout.FloatField("Max Health", _state.MaximumHealth);
-                _state.MoveSpeed = EditorGUILayout.FloatField("Move Speed", _state.MoveSpeed);
-                _state.RewardValue = EditorGUILayout.IntField("Reward Value", _state.RewardValue);
-                _state.ContactDamage = EditorGUILayout.FloatField("Contact Damage", _state.ContactDamage);
-                _state.DamageTypeId = EditorGUILayout.TextField("Damage Type ID", _state.DamageTypeId);
-                _state.CollisionRadius = EditorGUILayout.FloatField("Collision Radius", _state.CollisionRadius);
+                _state.MaximumHealth = context.DrawFloatField("Max Health", _state.MaximumHealth);
+                _state.MoveSpeed = context.DrawFloatField("Move Speed", _state.MoveSpeed);
+                _state.RewardValue = context.DrawIntField("Reward Value", _state.RewardValue);
+                _state.ContactDamage = context.DrawFloatField("Contact Damage", _state.ContactDamage);
+                _state.DamageTypeId = context.DrawTextField("Damage Type ID", _state.DamageTypeId);
+                _state.CollisionRadius = context.DrawFloatField("Collision Radius", _state.CollisionRadius);
             });
 
             context.DrawSection("Presentation", () =>
             {
-                _state.Prefab = (GameObject)EditorGUILayout.ObjectField("Enemy Prefab", _state.Prefab, typeof(GameObject), false);
-                _state.SpawnAudio = (AudioClip)EditorGUILayout.ObjectField("OnSpawn Audio", _state.SpawnAudio, typeof(AudioClip), false);
-                _state.SpawnVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnSpawn VFX", _state.SpawnVfxPrefab, typeof(GameObject), false);
-                _state.HitAudio = (AudioClip)EditorGUILayout.ObjectField("OnHit Audio", _state.HitAudio, typeof(AudioClip), false);
-                _state.HitVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnHit VFX", _state.HitVfxPrefab, typeof(GameObject), false);
-                _state.DeathAudio = (AudioClip)EditorGUILayout.ObjectField("OnDeath Audio", _state.DeathAudio, typeof(AudioClip), false);
-                _state.DeathVfxPrefab = (GameObject)EditorGUILayout.ObjectField("OnDeath VFX", _state.DeathVfxPrefab, typeof(GameObject), false);
+                _state.Prefab = context.DrawObjectField("Enemy Prefab", _state.Prefab);
+                _state.SpawnAudio = context.DrawObjectField("OnSpawn Audio", _state.SpawnAudio);
+                _state.SpawnVfxPrefab = context.DrawObjectField("OnSpawn VFX", _state.SpawnVfxPrefab);
+                _state.HitAudio = context.DrawObjectField("OnHit Audio", _state.HitAudio);
+                _state.HitVfxPrefab = context.DrawObjectField("OnHit VFX", _state.HitVfxPrefab);
+                _state.DeathAudio = context.DrawObjectField("OnDeath Audio", _state.DeathAudio);
+                _state.DeathVfxPrefab = context.DrawObjectField("OnDeath VFX", _state.DeathVfxPrefab);
             });
 
             context.DrawSection("Preview", () =>
@@ -238,10 +238,10 @@ namespace Deucarian.Attacks.Editor
 
             context.DrawSection("Wave Identity", () =>
             {
-                _state.WaveId = EditorGUILayout.TextField("Stable ID", _state.WaveId);
-                _state.DisplayName = EditorGUILayout.TextField("Display Name", _state.DisplayName);
-                _state.TagsCsv = EditorGUILayout.TextField("Tags", _state.TagsCsv);
-                _state.StartTick = EditorGUILayout.IntField("Start Tick", _state.StartTick);
+                _state.WaveId = context.DrawTextField("Stable ID", _state.WaveId);
+                _state.DisplayName = context.DrawTextField("Display Name", _state.DisplayName);
+                _state.TagsCsv = context.DrawTextField("Tags", _state.TagsCsv);
+                _state.StartTick = context.DrawIntField("Start Tick", _state.StartTick);
                 _state.OutputRoot = context.DrawOutputRootField(_state.OutputRoot);
             });
 
@@ -286,13 +286,13 @@ namespace Deucarian.Attacks.Editor
                 if (remove)
                     return;
 
-                entry.Enemy = (EnemyDefinitionAsset)EditorGUILayout.ObjectField("Enemy", entry.Enemy, typeof(EnemyDefinitionAsset), false);
-                entry.Count = EditorGUILayout.IntField("Count", entry.Count);
-                entry.BatchSize = EditorGUILayout.IntField("Batch Size", entry.BatchSize);
-                entry.InitialDelayTicks = EditorGUILayout.IntField("Start Delay Ticks", entry.InitialDelayTicks);
-                entry.IntervalTicks = EditorGUILayout.IntField("Interval Ticks", entry.IntervalTicks);
-                entry.SpawnChannelId = EditorGUILayout.TextField("Lane / Channel", entry.SpawnChannelId);
-                entry.ScalingTier = EditorGUILayout.IntField("Difficulty Tier", entry.ScalingTier);
+                entry.Enemy = context.DrawObjectField("Enemy", entry.Enemy);
+                entry.Count = context.DrawIntField("Count", entry.Count);
+                entry.BatchSize = context.DrawIntField("Batch Size", entry.BatchSize);
+                entry.InitialDelayTicks = context.DrawIntField("Start Delay Ticks", entry.InitialDelayTicks);
+                entry.IntervalTicks = context.DrawIntField("Interval Ticks", entry.IntervalTicks);
+                entry.SpawnChannelId = context.DrawTextField("Lane / Channel", entry.SpawnChannelId);
+                entry.ScalingTier = context.DrawIntField("Difficulty Tier", entry.ScalingTier);
             });
 
             if (remove)
