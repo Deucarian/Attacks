@@ -363,6 +363,113 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void SelectedAttackPreviewState_UsesSelectedAssetData()
+        {
+            AttackDefinitionAsset selected = AttackDefinitionAsset.CreateTransient(
+                "attack.moss.cursor-ray",
+                "Cursor Ray",
+                AttackRecipeDeliveryMode.Hitscan,
+                "damage.moss.focus",
+                6.5f,
+                18,
+                8.5f,
+                AttackRecipeTargetingMode.ForwardDirection);
+
+            var provider = new AttackAuthoringProvider();
+            var selection = new GameContentAuthoringPreviewSelection(
+                provider.ProviderId,
+                selected.DisplayName,
+                selected.Id,
+                "Attacks",
+                "Assets/GameContent/Attacks/attack.moss.cursor-ray.asset",
+                selected);
+            var context = new GameContentAuthoringPreviewContext(null, provider, selectedExistingItem: selection);
+
+            AttackAuthoringState state = AttackGameContentPreviewSelection.ResolveAttackState(context, new AttackAuthoringState());
+            IReadOnlyList<GameContentAuthoringPreviewRow> rows = AttackGameContentPreviewSummaries.BuildAttackRows(state);
+            string flattened = FlattenRows(rows);
+
+            Assert.AreEqual("attack.moss.cursor-ray", state.AttackId);
+            Assert.AreEqual("Cursor Ray", state.DisplayName);
+            Assert.AreEqual(AttackRecipeDeliveryMode.Hitscan, state.DeliveryMode);
+            AssertRowContains(rows, "ID", "attack.moss.cursor-ray");
+            AssertRowContains(rows, "Name", "Cursor Ray");
+            Assert.IsFalse(flattened.Contains("attack.example"));
+            Assert.IsFalse(flattened.Contains("fire-orb"));
+        }
+
+        [Test]
+        public void SelectedProjectilePreviewState_ReplacesCreateFormExampleValues()
+        {
+            AttackDefinitionAsset selected = AttackDefinitionAsset.CreateTransient(
+                "attack.moss.spore-pop",
+                "Spore Pop",
+                AttackRecipeDeliveryMode.Projectile,
+                "damage.moss.spore",
+                9f,
+                24,
+                7f,
+                AttackRecipeTargetingMode.Nearest,
+                projectileDefinitionId: "projectile.moss.spore-pop",
+                projectileSpawnableId: "projectile.moss.spore-pop",
+                projectileSpeed: 10f,
+                projectileLifetimeTicks: 96);
+
+            var provider = new AttackAuthoringProvider();
+            var selection = new GameContentAuthoringPreviewSelection(
+                provider.ProviderId,
+                selected.DisplayName,
+                selected.Id,
+                "Attacks",
+                "Assets/GameContent/Attacks/attack.moss.spore-pop.asset",
+                selected);
+            var context = new GameContentAuthoringPreviewContext(null, provider, selectedExistingItem: selection);
+
+            AttackAuthoringState state = AttackGameContentPreviewSelection.ResolveAttackState(context, new AttackAuthoringState());
+            IReadOnlyList<GameContentAuthoringPreviewRow> rows = AttackGameContentPreviewSummaries.BuildAttackRows(state);
+            string flattened = FlattenRows(rows);
+
+            Assert.AreEqual("attack.moss.spore-pop", state.AttackId);
+            Assert.AreEqual("projectile.moss.spore-pop", state.ProjectileDefinitionId);
+            AssertRowContains(rows, "Delivery", "projectile.moss.spore-pop");
+            Assert.IsFalse(flattened.Contains("attack.example"));
+            Assert.IsFalse(flattened.Contains("fire-orb"));
+        }
+
+        [Test]
+        public void PreviewContext_IgnoresSelectionFromDifferentProvider()
+        {
+            AttackDefinitionAsset selectedAttack = AttackDefinitionAsset.CreateTransient(
+                "attack.moss.moss-seeker",
+                "Moss Seeker",
+                AttackRecipeDeliveryMode.Projectile,
+                "damage.moss.seek",
+                7f,
+                30,
+                9f,
+                AttackRecipeTargetingMode.Nearest,
+                projectileDefinitionId: "projectile.moss.seeker",
+                projectileSpawnableId: "projectile.moss.seeker",
+                homing: true);
+            var enemyProvider = new EnemyAuthoringProvider();
+            var staleSelection = new GameContentAuthoringPreviewSelection(
+                "com.deucarian.attacks.attack",
+                selectedAttack.DisplayName,
+                selectedAttack.Id,
+                "Attacks",
+                "Assets/GameContent/Attacks/attack.moss.moss-seeker.asset",
+                selectedAttack);
+            var context = new GameContentAuthoringPreviewContext(null, enemyProvider, selectedExistingItem: staleSelection);
+            var createState = new EnemyAuthoringState { EnemyId = "enemy.create.current", DisplayName = "Current Enemy Form" };
+
+            EnemyAuthoringState state = AttackGameContentPreviewSelection.ResolveEnemyState(context, createState);
+
+            Assert.AreSame(createState, state);
+            Assert.IsFalse(context.HasSelectedExistingItem);
+            Assert.AreEqual("enemy.create.current", state.EnemyId);
+        }
+
+        [Test]
         public void PreviewActions_HandleMissingOptionalAssetsWithoutThrowing()
         {
             var attack = new AttackAuthoringState { IncludeStatusEffect = true };
@@ -621,6 +728,17 @@ namespace Deucarian.Attacks.Tests
             }
 
             Assert.Fail("Expected preview row '" + label + "' was not found.");
+        }
+
+        private static string FlattenRows(IReadOnlyList<GameContentAuthoringPreviewRow> rows)
+        {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                builder.Append(rows[i].Label).Append('=').Append(rows[i].Value).Append(';');
+            }
+
+            return builder.ToString();
         }
 
         private static AttackRuntime Runtime(AttackDefinition definition) => new AttackRuntime(Catalog(), new[] { definition });

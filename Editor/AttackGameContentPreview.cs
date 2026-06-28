@@ -16,6 +16,7 @@ namespace Deucarian.Attacks.Editor
         public void Draw(GameContentAuthoringPreviewContext context, AttackAuthoringState state)
         {
             if (context == null) return;
+            state = AttackGameContentPreviewSelection.ResolveAttackState(context, state);
             context.SetStatus(_status);
 
             context.DrawCard("Attack Playback", () =>
@@ -106,6 +107,7 @@ namespace Deucarian.Attacks.Editor
         public void Draw(GameContentAuthoringPreviewContext context, EnemyAuthoringState state)
         {
             if (context == null) return;
+            state = AttackGameContentPreviewSelection.ResolveEnemyState(context, state);
             context.SetStatus(_status);
 
             context.DrawCard("Enemy Playback", () =>
@@ -172,6 +174,7 @@ namespace Deucarian.Attacks.Editor
         public void Draw(GameContentAuthoringPreviewContext context, WaveAuthoringState state)
         {
             if (context == null) return;
+            state = AttackGameContentPreviewSelection.ResolveWaveState(context, state);
             context.SetStatus(_status);
 
             context.DrawCard("Wave Preview", () =>
@@ -346,6 +349,209 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
+    internal static class AttackGameContentPreviewSelection
+    {
+        public static AttackAuthoringState ResolveAttackState(GameContentAuthoringPreviewContext context, AttackAuthoringState createState)
+        {
+            AttackDefinitionAsset selected = context == null ? null : context.GetSelectedAsset<AttackDefinitionAsset>();
+            return selected == null ? createState : FromAttackAsset(selected);
+        }
+
+        public static EnemyAuthoringState ResolveEnemyState(GameContentAuthoringPreviewContext context, EnemyAuthoringState createState)
+        {
+            EnemyDefinitionAsset selected = context == null ? null : context.GetSelectedAsset<EnemyDefinitionAsset>();
+            return selected == null ? createState : FromEnemyAsset(selected);
+        }
+
+        public static WaveAuthoringState ResolveWaveState(GameContentAuthoringPreviewContext context, WaveAuthoringState createState)
+        {
+            WaveDefinitionAsset selected = context == null ? null : context.GetSelectedAsset<WaveDefinitionAsset>();
+            return selected == null ? createState : FromWaveAsset(selected);
+        }
+
+        private static AttackAuthoringState FromAttackAsset(AttackDefinitionAsset asset)
+        {
+            var state = new AttackAuthoringState
+            {
+                AttackId = asset.Id,
+                DisplayName = asset.DisplayName,
+                Icon = asset.Icon,
+                TagsCsv = JoinTags(asset.Tags)
+            };
+
+            AttackMechanicsDefinitionAsset mechanics = asset.Mechanics;
+            if (mechanics != null)
+            {
+                state.CooldownTicks = mechanics.CooldownTicks;
+                state.Range = mechanics.Range;
+                state.DamageAmount = mechanics.DamageAmount;
+                state.DamageTypeId = mechanics.DamageTypeId;
+            }
+
+            AttackTargetingDefinitionAsset targeting = asset.Targeting;
+            if (targeting != null)
+                state.TargetingMode = targeting.Mode;
+
+            AttackDeliveryDefinitionAsset delivery = asset.Delivery;
+            if (delivery != null)
+            {
+                state.DeliveryMode = delivery.Mode;
+                state.ProjectileDefinitionId = delivery.ProjectileDefinitionId;
+                state.ProjectileSpawnableId = delivery.ProjectileSpawnableId;
+                state.ProjectilePrefab = delivery.ProjectilePrefab;
+                state.ProjectileSpeed = delivery.ProjectileSpeed;
+                state.ProjectileLifetimeTicks = delivery.ProjectileLifetimeTicks;
+                state.Homing = delivery.Homing;
+                state.HomingTurnRate = delivery.HomingTurnRate;
+                state.PierceCount = delivery.PierceCount;
+                state.Radius = delivery.Radius;
+                state.BeamVfxPrefab = delivery.BeamVfxPrefab;
+                state.ImpactVfxPrefab = delivery.ImpactVfxPrefab;
+                state.MaxHits = delivery.MaxHits;
+                state.TickIntervalSeconds = delivery.TickIntervalSeconds;
+            }
+
+            AttackStatusEffectRecipe status = FirstStatus(asset.StatusEffects);
+            state.IncludeStatusEffect = status != null;
+            if (status != null)
+            {
+                state.StatusId = status.StatusId;
+                state.StatusDurationTicks = status.DurationTicks;
+                state.StatusTickRateTicks = status.TickRateTicks;
+                state.StatusStrength = status.Strength;
+                state.StatusMaxStacks = status.MaxStacks;
+                state.StatusStackingPolicy = status.StackingPolicy;
+                state.StatusEffectNote = status.EffectNote;
+            }
+
+            ApplyAttackPresentation(asset.Presentation, state);
+            return state;
+        }
+
+        private static EnemyAuthoringState FromEnemyAsset(EnemyDefinitionAsset asset)
+        {
+            var state = new EnemyAuthoringState
+            {
+                EnemyId = asset.Id,
+                DisplayName = asset.DisplayName,
+                Icon = asset.Icon,
+                Role = asset.Role,
+                TagsCsv = JoinTags(asset.Tags)
+            };
+
+            EnemyStatsDefinitionAsset stats = asset.Stats;
+            if (stats != null)
+            {
+                state.MaximumHealth = stats.MaximumHealth;
+                state.MoveSpeed = stats.MoveSpeed;
+                state.RewardValue = stats.RewardValue;
+                state.ContactDamage = stats.ContactDamage;
+                state.DamageTypeId = stats.DamageTypeId;
+                state.CollisionRadius = stats.CollisionRadius;
+            }
+
+            EnemyPresentationDefinitionAsset presentation = asset.Presentation;
+            if (presentation != null)
+            {
+                state.Prefab = presentation.Prefab;
+                ApplyEnemyEvent(presentation, EnemyPresentationEventKind.OnSpawn, out state.SpawnAudio, out state.SpawnVfxPrefab);
+                ApplyEnemyEvent(presentation, EnemyPresentationEventKind.OnHit, out state.HitAudio, out state.HitVfxPrefab);
+                ApplyEnemyEvent(presentation, EnemyPresentationEventKind.OnDeath, out state.DeathAudio, out state.DeathVfxPrefab);
+            }
+
+            return state;
+        }
+
+        private static WaveAuthoringState FromWaveAsset(WaveDefinitionAsset asset)
+        {
+            var state = new WaveAuthoringState
+            {
+                WaveId = asset.Id,
+                DisplayName = asset.DisplayName,
+                TagsCsv = JoinTags(asset.Tags),
+                StartTick = asset.Schedule == null ? 0 : asset.Schedule.StartTick
+            };
+
+            state.Entries.Clear();
+            IReadOnlyList<WaveEntryRecipe> entries = asset.Entries == null ? Array.Empty<WaveEntryRecipe>() : asset.Entries.Entries;
+            for (int i = 0; i < entries.Count; i++)
+            {
+                WaveEntryRecipe entry = entries[i];
+                if (entry == null) continue;
+                state.Entries.Add(new WaveEntryAuthoringState
+                {
+                    Enemy = entry.Enemy,
+                    Count = entry.Count,
+                    BatchSize = entry.BatchSize,
+                    InitialDelayTicks = entry.InitialDelayTicks,
+                    IntervalTicks = entry.IntervalTicks,
+                    SpawnChannelId = entry.SpawnChannelId,
+                    ScalingTier = entry.ScalingTier
+                });
+            }
+
+            state.EnsureEntries();
+            return state;
+        }
+
+        private static void ApplyAttackPresentation(AttackPresentationDefinitionAsset presentation, AttackAuthoringState state)
+        {
+            if (presentation == null) return;
+            ApplyAttackEvent(presentation, AttackPresentationEventKind.OnCast, out state.CastAudio, out state.CastVfxPrefab);
+            ApplyAttackEvent(presentation, AttackPresentationEventKind.OnFire, out state.FireAudio, out state.FireVfxPrefab);
+            ApplyAttackEvent(presentation, AttackPresentationEventKind.OnImpact, out state.ImpactAudio, out state.ImpactVfxPresentationPrefab);
+            ApplyAttackEvent(presentation, AttackPresentationEventKind.OnTick, out state.TickAudio, out state.TickVfxPrefab);
+            ApplyAttackEvent(presentation, AttackPresentationEventKind.OnExpire, out state.ExpireAudio, out state.ExpireVfxPrefab);
+        }
+
+        private static void ApplyAttackEvent(AttackPresentationDefinitionAsset presentation, AttackPresentationEventKind eventKind, out AudioClip audio, out GameObject vfx)
+        {
+            audio = null;
+            vfx = null;
+            if (presentation == null || !presentation.TryGetEvent(eventKind, out AttackPresentationEventRecipe recipe) || recipe == null)
+                return;
+
+            audio = recipe.AudioClip;
+            vfx = recipe.VfxPrefab;
+        }
+
+        private static void ApplyEnemyEvent(EnemyPresentationDefinitionAsset presentation, EnemyPresentationEventKind eventKind, out AudioClip audio, out GameObject vfx)
+        {
+            audio = null;
+            vfx = null;
+            if (presentation == null || !presentation.TryGetEvent(eventKind, out EnemyPresentationEventRecipe recipe) || recipe == null)
+                return;
+
+            audio = recipe.AudioClip;
+            vfx = recipe.VfxPrefab;
+        }
+
+        private static AttackStatusEffectRecipe FirstStatus(AttackStatusEffectsDefinitionAsset statusEffects)
+        {
+            IReadOnlyList<AttackStatusEffectRecipe> statuses = statusEffects == null ? Array.Empty<AttackStatusEffectRecipe>() : statusEffects.StatusEffects;
+            for (int i = 0; i < statuses.Count; i++)
+            {
+                if (statuses[i] != null)
+                    return statuses[i];
+            }
+
+            return null;
+        }
+
+        private static string JoinTags(IReadOnlyList<string> tags)
+        {
+            if (tags == null || tags.Count == 0) return string.Empty;
+            var values = new List<string>();
+            for (int i = 0; i < tags.Count; i++)
+            {
+                string tag = tags[i];
+                if (!string.IsNullOrWhiteSpace(tag)) values.Add(tag.Trim());
+            }
+
+            return string.Join(", ", values.ToArray());
+        }
+    }
+
     internal static class AttackGameContentPreviewSummaries
     {
         public static IReadOnlyList<GameContentAuthoringPreviewRow> BuildAttackRows(AttackAuthoringState state)
@@ -353,6 +559,8 @@ namespace Deucarian.Attacks.Editor
             if (state == null) return Array.Empty<GameContentAuthoringPreviewRow>();
             return new[]
             {
+                Row("Name", state.DisplayName),
+                Row("ID", state.AttackId),
                 Row("Damage", FormatFloat(state.DamageAmount) + " " + state.DamageTypeId),
                 Row("Cooldown", state.CooldownTicks.ToString(CultureInfo.InvariantCulture) + " tick(s)"),
                 Row("Range", FormatFloat(state.Range)),
@@ -423,6 +631,8 @@ namespace Deucarian.Attacks.Editor
             if (state == null) return Array.Empty<GameContentAuthoringPreviewRow>();
             return new[]
             {
+                Row("Name", state.DisplayName),
+                Row("ID", state.EnemyId),
                 Row("Role", state.Role.ToString()),
                 Row("Health", FormatFloat(state.MaximumHealth)),
                 Row("Speed", FormatFloat(state.MoveSpeed)),
@@ -462,6 +672,8 @@ namespace Deucarian.Attacks.Editor
             state.EnsureEntries();
             return new[]
             {
+                Row("Name", state.DisplayName),
+                Row("ID", state.WaveId),
                 Row("Start Tick", state.StartTick.ToString(CultureInfo.InvariantCulture)),
                 Row("Entries", state.Entries.Count.ToString(CultureInfo.InvariantCulture)),
                 Row("Total Enemies", GetWaveTotalEnemyCount(state).ToString(CultureInfo.InvariantCulture)),
