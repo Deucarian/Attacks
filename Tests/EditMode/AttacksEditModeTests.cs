@@ -327,6 +327,14 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void AttackProvider_UsesCustomAuthoringSurface()
+        {
+            var provider = new AttackAuthoringProvider();
+
+            Assert.That(provider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+        }
+
+        [Test]
         public void SharedGameContentAuthoringSurface_ProvidersExposeSafePreviewLifecycle()
         {
             foreach (IGameContentAuthoringProvider provider in GameContentAuthoringProviderRegistry.Providers)
@@ -483,6 +491,86 @@ namespace Deucarian.Attacks.Tests
 
             StringAssert.Contains("no audio clip assigned", AttackGameContentPreviewActions.PreviewAttackEvent(attack, AttackPresentationEventKind.OnImpact));
             StringAssert.Contains("no audio clip assigned", AttackGameContentPreviewActions.PreviewEnemyEvent(enemy, EnemyPresentationEventKind.OnSpawn));
+        }
+
+        [Test]
+        public void PreviewActions_MuteSuppressesAttackAudioPreview()
+        {
+            AudioClip clip = AudioClip.Create("MutedPreviewClip", 128, 1, 44100, false);
+            try
+            {
+                var attack = new AttackAuthoringState { CastAudio = clip };
+
+                string status = AttackGameContentPreviewActions.PreviewAttackEvent(attack, AttackPresentationEventKind.OnCast, true);
+                string full = AttackGameContentPreviewActions.PreviewFullAttack(attack, true);
+
+                StringAssert.Contains("audio muted", status);
+                StringAssert.Contains("Audio muted", full);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clip);
+            }
+        }
+
+        [Test]
+        public void AttackProviderV2ListModel_ClassifiesDeliveryModes()
+        {
+            AttackDefinitionAsset homing = AttackDefinitionAsset.CreateTransient(
+                "attack.test.homing",
+                "Homing",
+                AttackRecipeDeliveryMode.Projectile,
+                Physical.Value,
+                1f,
+                1,
+                4f,
+                AttackRecipeTargetingMode.Nearest,
+                projectileDefinitionId: "projectile.test.homing",
+                projectileSpawnableId: "projectile.test.homing",
+                homing: true);
+            AttackDefinitionAsset beam = AttackDefinitionAsset.CreateTransient(
+                "attack.test.beam",
+                "Beam",
+                AttackRecipeDeliveryMode.Hitscan,
+                Physical.Value,
+                1f,
+                1,
+                4f,
+                AttackRecipeTargetingMode.ForwardDirection);
+            AttackDefinitionAsset area = AttackDefinitionAsset.CreateTransient(
+                "attack.test.area",
+                "Area",
+                AttackRecipeDeliveryMode.Area,
+                Physical.Value,
+                1f,
+                1,
+                4f,
+                AttackRecipeTargetingMode.Nearest);
+            AttackDefinitionAsset status = AttackDefinitionAsset.CreateTransient(
+                "attack.test.status",
+                "Status",
+                AttackRecipeDeliveryMode.Aura,
+                Physical.Value,
+                1f,
+                1,
+                4f,
+                AttackRecipeTargetingMode.Nearest,
+                new[] { new AttackStatusEffectRecipe("status.test.slow", 30, 10, 1f) });
+
+            try
+            {
+                Assert.That(AttackProviderV2ListItem.GetTypeLabelForTests(homing), Is.EqualTo("Homing"));
+                Assert.That(AttackProviderV2ListItem.GetTypeLabelForTests(beam), Is.EqualTo("Beam"));
+                Assert.That(AttackProviderV2ListItem.GetTypeLabelForTests(area), Is.EqualTo("AOE"));
+                Assert.That(AttackProviderV2ListItem.GetTypeLabelForTests(status), Is.EqualTo("Status"));
+            }
+            finally
+            {
+                AttackRecipeAssetCreator.DestroyTransient(homing);
+                AttackRecipeAssetCreator.DestroyTransient(beam);
+                AttackRecipeAssetCreator.DestroyTransient(area);
+                AttackRecipeAssetCreator.DestroyTransient(status);
+            }
         }
 
         [Test]

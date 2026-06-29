@@ -18,10 +18,12 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider
+    internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider
     {
         private readonly AttackAuthoringState _state = new AttackAuthoringState();
         private readonly AttackGameContentPreviewController _preview = new AttackGameContentPreviewController();
+        private readonly AttackProviderV2State _v2State = new AttackProviderV2State();
+        private readonly AttackProviderV2View _v2View = new AttackProviderV2View();
 
         public string ProviderId => "com.deucarian.attacks.attack";
         public string DisplayName => "Attack";
@@ -30,7 +32,16 @@ namespace Deucarian.Attacks.Editor
         public bool Enabled => true;
         public void OnSelected() { }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
-        public void StopPreview() { _preview.Stop(); }
+        public void StopPreview()
+        {
+            _preview.Stop();
+            _v2State.StopPreview();
+        }
+
+        public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context)
+        {
+            _v2View.Draw(context, _state, _preview, _v2State);
+        }
 
         public void Draw(GameContentAuthoringContext context)
         {

@@ -243,9 +243,14 @@ namespace Deucarian.Attacks.Editor
     {
         public static string PreviewFullAttack(AttackAuthoringState state)
         {
+            return PreviewFullAttack(state, false);
+        }
+
+        public static string PreviewFullAttack(AttackAuthoringState state, bool muted)
+        {
             if (state == null) return "Attack preview unavailable: authoring state is missing.";
 
-            string audioStatus = PreviewFirstAvailableAttackAudio(state);
+            string audioStatus = muted ? "Audio muted." : PreviewFirstAvailableAttackAudio(state);
             return "Full attack preview: OnCast -> OnFire -> delivery -> OnImpact"
                 + (state.IncludeStatusEffect ? " -> Status Tick -> OnExpire" : string.Empty)
                 + ". " + audioStatus;
@@ -273,10 +278,17 @@ namespace Deucarian.Attacks.Editor
 
         public static string PreviewAttackEvent(AttackAuthoringState state, AttackPresentationEventKind eventKind)
         {
+            return PreviewAttackEvent(state, eventKind, false);
+        }
+
+        public static string PreviewAttackEvent(AttackAuthoringState state, AttackPresentationEventKind eventKind, bool muted)
+        {
             if (state == null) return eventKind + " preview unavailable: authoring state is missing.";
             AudioClip clip = GetAttackAudio(state, eventKind);
             GameObject vfx = GetAttackVfx(state, eventKind);
             string visual = vfx == null ? "no VFX assigned" : "VFX " + vfx.name;
+            if (muted)
+                return eventKind + " preview: " + visual + "; audio muted.";
             if (clip == null)
                 return eventKind + " preview: " + visual + "; no audio clip assigned.";
 
