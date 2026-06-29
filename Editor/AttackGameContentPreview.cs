@@ -12,6 +12,8 @@ namespace Deucarian.Attacks.Editor
     internal sealed class AttackGameContentPreviewController
     {
         private string _status = "Preview idle";
+        private bool _fullPreviewPlaying;
+        private double _fullPreviewStartTime;
 
         public void Draw(GameContentAuthoringPreviewContext context, AttackAuthoringState state)
         {
@@ -24,7 +26,12 @@ namespace Deucarian.Attacks.Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     if (context.DrawPrimaryButton("Preview Full Attack", true, GUILayout.Height(26f)))
+                    {
+                        _fullPreviewPlaying = true;
+                        _fullPreviewStartTime = EditorApplication.timeSinceStartup;
                         SetStatus(context, AttackGameContentPreviewActions.PreviewFullAttack(state));
+                    }
+
                     if (context.DrawSecondaryButton("Stop Preview", true, GUILayout.Width(104f), GUILayout.Height(26f)))
                         Stop(context);
                 }
@@ -63,10 +70,19 @@ namespace Deucarian.Attacks.Editor
 
             context.DrawCard("Model And Presentation", () =>
             {
+                GameContentAuthoringActionPreview actionPreview = AttackGameContentPreviewActions.BuildActionPreview(
+                    state,
+                    _fullPreviewPlaying,
+                    _fullPreviewStartTime);
                 context.DrawObjectPreview(
                     AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(state),
                     "Primary Visual",
-                    "Assign a projectile prefab, beam VFX, impact VFX, or presentation VFX to see a visual preview.");
+                    "Assign a projectile prefab, beam VFX, impact VFX, or presentation VFX to see a visual preview.",
+                    new GameContentAuthoringObjectPreviewOptions
+                    {
+                        MinimumHeight = 212f,
+                        ActionPreview = actionPreview
+                    });
                 context.DrawSummaryRows(AttackGameContentPreviewSummaries.BuildAttackPresentationRows(state));
                 context.DrawAssetRow("Projectile", state == null ? null : state.ProjectilePrefab, "Not assigned");
                 context.DrawAssetRow("Beam VFX", state == null ? null : state.BeamVfxPrefab, "Not assigned");
@@ -84,6 +100,7 @@ namespace Deucarian.Attacks.Editor
         public void Stop()
         {
             AttackEditorPreviewAudio.StopAll();
+            _fullPreviewPlaying = false;
             _status = "Preview stopped";
         }
 
@@ -234,6 +251,26 @@ namespace Deucarian.Attacks.Editor
                 + ". " + audioStatus;
         }
 
+        public static GameContentAuthoringActionPreview BuildActionPreview(AttackAuthoringState state, bool playing, double startTime)
+        {
+            if (state == null) return null;
+            return new GameContentAuthoringActionPreview
+            {
+                PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(state),
+                ProjectilePrefab = state.ProjectilePrefab,
+                BeamVfxPrefab = state.BeamVfxPrefab,
+                FireVfxPrefab = state.FireVfxPrefab,
+                ImpactVfxPrefab = state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab,
+                Mode = GetActionPreviewMode(state.DeliveryMode),
+                IncludeStatusEffect = state.IncludeStatusEffect,
+                Playing = playing,
+                StartTime = startTime,
+                StaticNormalizedTime = 0.5f,
+                DurationSeconds = state.IncludeStatusEffect ? 3f : 2.4f,
+                Label = string.IsNullOrWhiteSpace(state.DisplayName) ? state.AttackId : state.DisplayName
+            };
+        }
+
         public static string PreviewAttackEvent(AttackAuthoringState state, AttackPresentationEventKind eventKind)
         {
             if (state == null) return eventKind + " preview unavailable: authoring state is missing.";
@@ -278,6 +315,23 @@ namespace Deucarian.Attacks.Editor
             string audioMessage;
             AttackEditorPreviewAudio.TryPlay(clip, out audioMessage);
             return audioMessage;
+        }
+
+        private static GameContentAuthoringActionPreviewMode GetActionPreviewMode(AttackRecipeDeliveryMode mode)
+        {
+            switch (mode)
+            {
+                case AttackRecipeDeliveryMode.Projectile:
+                    return GameContentAuthoringActionPreviewMode.Projectile;
+                case AttackRecipeDeliveryMode.Hitscan:
+                    return GameContentAuthoringActionPreviewMode.Hitscan;
+                case AttackRecipeDeliveryMode.Area:
+                    return GameContentAuthoringActionPreviewMode.Area;
+                case AttackRecipeDeliveryMode.Aura:
+                    return GameContentAuthoringActionPreviewMode.Aura;
+                default:
+                    return GameContentAuthoringActionPreviewMode.Static;
+            }
         }
 
         private static AudioClip GetAttackAudio(AttackAuthoringState state, AttackPresentationEventKind eventKind)

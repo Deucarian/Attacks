@@ -486,6 +486,47 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void FullAttackPreview_BuildsViewportActionFromDeliveryAndPresentation()
+        {
+            var projectile = new GameObject("ProjectilePreviewPrefab");
+            var impact = new GameObject("ImpactPreviewPrefab");
+            try
+            {
+                var attack = new AttackAuthoringState
+                {
+                    DisplayName = "Preview Bolt",
+                    DeliveryMode = AttackRecipeDeliveryMode.Projectile,
+                    ProjectilePrefab = projectile,
+                    ImpactVfxPrefab = impact,
+                    IncludeStatusEffect = true
+                };
+
+                GameContentAuthoringActionPreview preview = AttackGameContentPreviewActions.BuildActionPreview(attack, true, 5d);
+
+                Assert.That(preview, Is.Not.Null);
+                Assert.That(preview.Mode, Is.EqualTo(GameContentAuthoringActionPreviewMode.Projectile));
+                Assert.That(preview.PrimaryAsset, Is.SameAs(projectile));
+                Assert.That(preview.ProjectilePrefab, Is.SameAs(projectile));
+                Assert.That(preview.ImpactVfxPrefab, Is.SameAs(impact));
+                Assert.That(preview.Playing, Is.True);
+                Assert.That(preview.GetPhaseLabel(6.5d), Is.EqualTo("Projectile travel"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectile);
+                UnityEngine.Object.DestroyImmediate(impact);
+            }
+        }
+
+        [Test]
+        public void FullAttackPreview_MapsNonProjectileDeliveryModesToViewportActions()
+        {
+            Assert.That(BuildPreviewMode(AttackRecipeDeliveryMode.Hitscan), Is.EqualTo(GameContentAuthoringActionPreviewMode.Hitscan));
+            Assert.That(BuildPreviewMode(AttackRecipeDeliveryMode.Area), Is.EqualTo(GameContentAuthoringActionPreviewMode.Area));
+            Assert.That(BuildPreviewMode(AttackRecipeDeliveryMode.Aura), Is.EqualTo(GameContentAuthoringActionPreviewMode.Aura));
+        }
+
+        [Test]
         public void WavePreviewSummaries_ReportMissingEnemyReferencesAndTiming()
         {
             var state = new WaveAuthoringState();
@@ -739,6 +780,12 @@ namespace Deucarian.Attacks.Tests
             }
 
             return builder.ToString();
+        }
+
+        private static GameContentAuthoringActionPreviewMode BuildPreviewMode(AttackRecipeDeliveryMode deliveryMode)
+        {
+            var attack = new AttackAuthoringState { DeliveryMode = deliveryMode };
+            return AttackGameContentPreviewActions.BuildActionPreview(attack, false, 0d).Mode;
         }
 
         private static AttackRuntime Runtime(AttackDefinition definition) => new AttackRuntime(Catalog(), new[] { definition });
