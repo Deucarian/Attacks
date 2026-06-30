@@ -243,9 +243,14 @@ namespace Deucarian.Attacks.Editor
     {
         public static string PreviewFullAttack(AttackAuthoringState state)
         {
+            return PreviewFullAttack(state, false);
+        }
+
+        public static string PreviewFullAttack(AttackAuthoringState state, bool muted)
+        {
             if (state == null) return "Attack preview unavailable: authoring state is missing.";
 
-            string audioStatus = PreviewFirstAvailableAttackAudio(state);
+            string audioStatus = muted ? "Audio muted." : PreviewFirstAvailableAttackAudio(state);
             return "Full attack preview: OnCast -> OnFire -> delivery -> OnImpact"
                 + (state.IncludeStatusEffect ? " -> Status Tick -> OnExpire" : string.Empty)
                 + ". " + audioStatus;
@@ -254,29 +259,46 @@ namespace Deucarian.Attacks.Editor
         public static GameContentAuthoringActionPreview BuildActionPreview(AttackAuthoringState state, bool playing, double startTime)
         {
             if (state == null) return null;
-            return new GameContentAuthoringActionPreview
+            bool projectileMode = state.DeliveryMode == AttackRecipeDeliveryMode.Projectile;
+            bool hitscanMode = state.DeliveryMode == AttackRecipeDeliveryMode.Hitscan;
+            bool auraMode = state.DeliveryMode == AttackRecipeDeliveryMode.Aura;
+            bool statusPreview = state.IncludeStatusEffect || auraMode;
+            var preview = new GameContentAuthoringActionPreview
             {
                 PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(state),
-                ProjectilePrefab = state.ProjectilePrefab,
-                BeamVfxPrefab = state.BeamVfxPrefab,
+                ProjectilePrefab = projectileMode ? state.ProjectilePrefab : null,
+                BeamVfxPrefab = hitscanMode ? state.BeamVfxPrefab : null,
+                CastVfxPrefab = state.CastVfxPrefab,
                 FireVfxPrefab = state.FireVfxPrefab,
                 ImpactVfxPrefab = state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab,
+                TickVfxPrefab = statusPreview ? state.TickVfxPrefab : null,
+                ExpireVfxPrefab = statusPreview ? state.ExpireVfxPrefab : null,
                 Mode = GetActionPreviewMode(state.DeliveryMode),
                 IncludeStatusEffect = state.IncludeStatusEffect,
                 Playing = playing,
                 StartTime = startTime,
                 StaticNormalizedTime = 0.5f,
                 DurationSeconds = state.IncludeStatusEffect ? 3f : 2.4f,
-                Label = string.IsNullOrWhiteSpace(state.DisplayName) ? state.AttackId : state.DisplayName
+                Label = string.IsNullOrWhiteSpace(state.DisplayName) ? state.AttackId : state.DisplayName,
+                DeliveryTypeLabel = GetPreviewDeliveryLabel(state)
             };
+            AddPreviewRoles(preview, state);
+            return preview;
         }
 
         public static string PreviewAttackEvent(AttackAuthoringState state, AttackPresentationEventKind eventKind)
+        {
+            return PreviewAttackEvent(state, eventKind, false);
+        }
+
+        public static string PreviewAttackEvent(AttackAuthoringState state, AttackPresentationEventKind eventKind, bool muted)
         {
             if (state == null) return eventKind + " preview unavailable: authoring state is missing.";
             AudioClip clip = GetAttackAudio(state, eventKind);
             GameObject vfx = GetAttackVfx(state, eventKind);
             string visual = vfx == null ? "no VFX assigned" : "VFX " + vfx.name;
+            if (muted)
+                return eventKind + " preview: " + visual + "; audio muted.";
             if (clip == null)
                 return eventKind + " preview: " + visual + "; no audio clip assigned.";
 
@@ -285,12 +307,51 @@ namespace Deucarian.Attacks.Editor
             return eventKind + " preview: " + visual + "; " + audioMessage;
         }
 
+        public static string PreviewTimelineAudio(AttackAuthoringState state, GameContentAuthoringActionPreview preview, bool muted, ref int lastPhase)
+        {
+            if (state == null || preview == null || !preview.Playing)
+            {
+                lastPhase = -1;
+                return string.Empty;
+            }
+
+            int phase = GetTimelineAudioPhase(preview.GetNormalizedTime(EditorApplication.timeSinceStartup), state.IncludeStatusEffect);
+            if (!ShouldPreviewTimelineAudio(muted, preview.Playing, lastPhase, phase))
+            {
+                if (phase < 0)
+                    lastPhase = -1;
+                return string.Empty;
+            }
+
+            lastPhase = phase;
+            AttackPresentationEventKind eventKind = GetTimelineAudioEvent(phase);
+            AudioClip clip = GetAttackAudio(state, eventKind);
+            if (clip == null)
+                return string.Empty;
+
+            string audioMessage;
+            AttackEditorPreviewAudio.TryPlay(clip, out audioMessage);
+            return "Timeline " + eventKind + ": " + audioMessage;
+        }
+
+        public static bool ShouldPreviewTimelineAudio(bool muted, bool playing, int lastPhase, int phase)
+        {
+            return !muted && playing && phase >= 0 && phase != lastPhase;
+        }
+
         public static string PreviewEnemyEvent(EnemyAuthoringState state, EnemyPresentationEventKind eventKind)
+        {
+            return PreviewEnemyEvent(state, eventKind, false);
+        }
+
+        public static string PreviewEnemyEvent(EnemyAuthoringState state, EnemyPresentationEventKind eventKind, bool muted)
         {
             if (state == null) return eventKind + " preview unavailable: authoring state is missing.";
             AudioClip clip = GetEnemyAudio(state, eventKind);
             GameObject vfx = GetEnemyVfx(state, eventKind);
             string visual = vfx == null ? "no VFX assigned" : "VFX " + vfx.name;
+            if (muted)
+                return eventKind + " preview: " + visual + "; audio muted.";
             if (clip == null)
                 return eventKind + " preview: " + visual + "; no audio clip assigned.";
 
@@ -332,6 +393,89 @@ namespace Deucarian.Attacks.Editor
                 default:
                     return GameContentAuthoringActionPreviewMode.Static;
             }
+        }
+
+        private static int GetTimelineAudioPhase(float normalizedTime, bool includeStatus)
+        {
+            if (normalizedTime <= 0.05f) return 0;
+            if (normalizedTime >= 0.18f && normalizedTime <= 0.24f) return 1;
+            if (normalizedTime >= 0.72f && normalizedTime <= 0.79f) return 2;
+            if (!includeStatus) return -1;
+            if (normalizedTime >= 0.88f && normalizedTime <= 0.93f) return 3;
+            if (normalizedTime >= 0.96f) return 4;
+            return -1;
+        }
+
+        private static AttackPresentationEventKind GetTimelineAudioEvent(int phase)
+        {
+            switch (phase)
+            {
+                case 0:
+                    return AttackPresentationEventKind.OnCast;
+                case 1:
+                    return AttackPresentationEventKind.OnFire;
+                case 2:
+                    return AttackPresentationEventKind.OnImpact;
+                case 3:
+                    return AttackPresentationEventKind.OnTick;
+                case 4:
+                    return AttackPresentationEventKind.OnExpire;
+                default:
+                    return AttackPresentationEventKind.OnImpact;
+            }
+        }
+
+        private static void AddPreviewRoles(GameContentAuthoringActionPreview preview, AttackAuthoringState state)
+        {
+            if (preview == null || state == null)
+                return;
+
+            switch (state.DeliveryMode)
+            {
+                case AttackRecipeDeliveryMode.Hitscan:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Source", string.Empty));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Beam", GetObjectLabel(state.BeamVfxPrefab, "beam/tracer"), state.BeamVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Impact", "Impact Point", state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab));
+                    break;
+                case AttackRecipeDeliveryMode.Area:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Origin", "Cast Origin"));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Radius", "AOE Radius", state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Targets", "Target Dummies"));
+                    break;
+                case AttackRecipeDeliveryMode.Aura:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Status Area", "Affected Area", state.TickVfxPrefab ?? state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Tick", "Tick Marker", state.TickVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Target", "Target Dummy"));
+                    break;
+                default:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Source", string.Empty));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Projectile", GetObjectLabel(state.ProjectilePrefab, "projectile"), state.ProjectilePrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Target", "Target Dummy"));
+                    break;
+            }
+        }
+
+        private static string GetPreviewDeliveryLabel(AttackAuthoringState state)
+        {
+            if (state == null)
+                return "Delivery";
+
+            switch (state.DeliveryMode)
+            {
+                case AttackRecipeDeliveryMode.Hitscan:
+                    return "Beam";
+                case AttackRecipeDeliveryMode.Area:
+                    return "AOE";
+                case AttackRecipeDeliveryMode.Aura:
+                    return "Status";
+                default:
+                    return state.Homing ? "Homing Projectile" : "Projectile";
+            }
+        }
+
+        private static string GetObjectLabel(UnityEngine.Object asset, string fallback)
+        {
+            return asset == null || string.IsNullOrWhiteSpace(asset.name) ? fallback : asset.name;
         }
 
         private static AudioClip GetAttackAudio(AttackAuthoringState state, AttackPresentationEventKind eventKind)
@@ -423,7 +567,7 @@ namespace Deucarian.Attacks.Editor
             return selected == null ? createState : FromWaveAsset(selected);
         }
 
-        private static AttackAuthoringState FromAttackAsset(AttackDefinitionAsset asset)
+        public static AttackAuthoringState FromAttackAsset(AttackDefinitionAsset asset)
         {
             var state = new AttackAuthoringState
             {
@@ -482,7 +626,7 @@ namespace Deucarian.Attacks.Editor
             return state;
         }
 
-        private static EnemyAuthoringState FromEnemyAsset(EnemyDefinitionAsset asset)
+        public static EnemyAuthoringState FromEnemyAsset(EnemyDefinitionAsset asset)
         {
             var state = new EnemyAuthoringState
             {

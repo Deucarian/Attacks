@@ -5,6 +5,7 @@
     "Deucarian.Attacks",
     "Deucarian.Attacks.Authoring",
     "Deucarian.Combat",
+    "Deucarian.Editor",
     "Deucarian.GameplayFoundation",
     "Deucarian.GameContentAuthoring.Editor"
   ],
