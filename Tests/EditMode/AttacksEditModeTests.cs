@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Deucarian.Attacks.Editor;
 using Deucarian.Attacks.Authoring;
@@ -597,12 +598,114 @@ namespace Deucarian.Attacks.Tests
                 Assert.That(preview.ProjectilePrefab, Is.SameAs(projectile));
                 Assert.That(preview.ImpactVfxPrefab, Is.SameAs(impact));
                 Assert.That(preview.Playing, Is.True);
+                Assert.That(preview.DeliveryTypeLabel, Is.EqualTo("Projectile"));
+                AssertPreviewRoles(preview, "Source", "Projectile", "Target");
+                Assert.That(PreviewRole(preview, "Projectile").Label, Is.EqualTo("ProjectilePreviewPrefab"));
+                Assert.That(GameContentAuthoringObjectPreviewUtility.BuildRoleLabelContent(PreviewRole(preview, "Projectile")).text, Is.EqualTo("Projectile: ProjectilePreviewPrefab"));
+                Assert.That(PreviewRole(preview, "Projectile").Asset, Is.SameAs(projectile));
                 Assert.That(preview.GetPhaseLabel(6.5d), Is.EqualTo("Projectile travel"));
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(projectile);
                 UnityEngine.Object.DestroyImmediate(impact);
+            }
+        }
+
+        [Test]
+        public void FullAttackPreview_BuildsBeamRolesForHitscan()
+        {
+            var beam = new GameObject("cursor-ray-beam");
+            var impact = new GameObject("cursor-ray-impact");
+            try
+            {
+                var attack = new AttackAuthoringState
+                {
+                    DisplayName = "Cursor Ray",
+                    DeliveryMode = AttackRecipeDeliveryMode.Hitscan,
+                    BeamVfxPrefab = beam,
+                    ImpactVfxPrefab = impact
+                };
+
+                GameContentAuthoringActionPreview preview = AttackGameContentPreviewActions.BuildActionPreview(attack, false, 0d);
+
+                Assert.That(preview.Mode, Is.EqualTo(GameContentAuthoringActionPreviewMode.Hitscan));
+                Assert.That(preview.DeliveryTypeLabel, Is.EqualTo("Beam"));
+                AssertPreviewRoles(preview, "Source", "Beam", "Impact");
+                Assert.That(PreviewRole(preview, "Beam").Label, Is.EqualTo("cursor-ray-beam"));
+                Assert.That(GameContentAuthoringObjectPreviewUtility.BuildRoleLabelContent(PreviewRole(preview, "Beam")).text, Is.EqualTo("Beam: cursor-ray-beam"));
+                Assert.That(PreviewRole(preview, "Beam").Asset, Is.SameAs(beam));
+                Assert.That(PreviewRole(preview, "Impact").Asset, Is.SameAs(impact));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(beam);
+                UnityEngine.Object.DestroyImmediate(impact);
+            }
+        }
+
+        [Test]
+        public void FullAttackPreview_BuildsHomingProjectileRoleFromSelectedPrefab()
+        {
+            var projectile = new GameObject("projectile-moss-seeker");
+            try
+            {
+                var attack = new AttackAuthoringState
+                {
+                    DisplayName = "Moss Seeker",
+                    DeliveryMode = AttackRecipeDeliveryMode.Projectile,
+                    Homing = true,
+                    ProjectilePrefab = projectile
+                };
+
+                GameContentAuthoringActionPreview preview = AttackGameContentPreviewActions.BuildActionPreview(attack, false, 0d);
+
+                Assert.That(preview.DeliveryTypeLabel, Is.EqualTo("Homing Projectile"));
+                AssertPreviewRoles(preview, "Source", "Projectile", "Target");
+                Assert.That(PreviewRole(preview, "Projectile").Label, Does.Contain("projectile-moss-seeker"));
+                Assert.That(PreviewRole(preview, "Projectile").Asset, Is.SameAs(projectile));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectile);
+            }
+        }
+
+        [Test]
+        public void FullAttackPreview_BuildsAreaAndStatusRoles()
+        {
+            var areaImpact = new GameObject("spore-pop-impact");
+            var statusTick = new GameObject("sticky-bloom-tick");
+            try
+            {
+                var area = new AttackAuthoringState
+                {
+                    DisplayName = "Spore Pop",
+                    DeliveryMode = AttackRecipeDeliveryMode.Area,
+                    ImpactVfxPrefab = areaImpact
+                };
+                var status = new AttackAuthoringState
+                {
+                    DisplayName = "Sticky Bloom",
+                    DeliveryMode = AttackRecipeDeliveryMode.Aura,
+                    TickVfxPrefab = statusTick
+                };
+
+                GameContentAuthoringActionPreview areaPreview = AttackGameContentPreviewActions.BuildActionPreview(area, false, 0d);
+                GameContentAuthoringActionPreview statusPreview = AttackGameContentPreviewActions.BuildActionPreview(status, false, 0d);
+
+                Assert.That(areaPreview.DeliveryTypeLabel, Is.EqualTo("AOE"));
+                AssertPreviewRoles(areaPreview, "Origin", "Radius", "Targets");
+                Assert.That(PreviewRole(areaPreview, "Radius").Asset, Is.SameAs(areaImpact));
+
+                Assert.That(statusPreview.DeliveryTypeLabel, Is.EqualTo("Status"));
+                AssertPreviewRoles(statusPreview, "Status Area", "Tick", "Target");
+                Assert.That(PreviewRole(statusPreview, "Tick").Asset, Is.SameAs(statusTick));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(areaImpact);
+                UnityEngine.Object.DestroyImmediate(statusTick);
             }
         }
 
@@ -874,6 +977,18 @@ namespace Deucarian.Attacks.Tests
         {
             var attack = new AttackAuthoringState { DeliveryMode = deliveryMode };
             return AttackGameContentPreviewActions.BuildActionPreview(attack, false, 0d).Mode;
+        }
+
+        private static void AssertPreviewRoles(GameContentAuthoringActionPreview preview, params string[] expectedRoles)
+        {
+            Assert.That(preview.Roles.Select(role => role.Role).ToArray(), Is.EqualTo(expectedRoles));
+        }
+
+        private static GameContentAuthoringActionPreviewRole PreviewRole(GameContentAuthoringActionPreview preview, string role)
+        {
+            GameContentAuthoringActionPreviewRole match = preview.Roles.FirstOrDefault(candidate => candidate != null && string.Equals(candidate.Role, role, StringComparison.Ordinal));
+            Assert.That(match, Is.Not.Null, "Expected preview role " + role + ".");
+            return match;
         }
 
         private static AttackRuntime Runtime(AttackDefinition definition) => new AttackRuntime(Catalog(), new[] { definition });

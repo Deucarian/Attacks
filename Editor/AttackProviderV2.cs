@@ -652,6 +652,7 @@ namespace Deucarian.Attacks.Editor
                 actionPreview.Loop = state.PreviewLoop;
                 actionPreview.Speed = state.PreviewSpeed;
                 actionPreview.StaticNormalizedTime = state.PausedNormalizedTime;
+                actionPreview.Muted = state.PreviewMuted;
             }
 
             using (new EditorGUILayout.HorizontalScope())

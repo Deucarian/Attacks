@@ -259,7 +259,7 @@ namespace Deucarian.Attacks.Editor
         public static GameContentAuthoringActionPreview BuildActionPreview(AttackAuthoringState state, bool playing, double startTime)
         {
             if (state == null) return null;
-            return new GameContentAuthoringActionPreview
+            var preview = new GameContentAuthoringActionPreview
             {
                 PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(state),
                 ProjectilePrefab = state.ProjectilePrefab,
@@ -272,8 +272,11 @@ namespace Deucarian.Attacks.Editor
                 StartTime = startTime,
                 StaticNormalizedTime = 0.5f,
                 DurationSeconds = state.IncludeStatusEffect ? 3f : 2.4f,
-                Label = string.IsNullOrWhiteSpace(state.DisplayName) ? state.AttackId : state.DisplayName
+                Label = string.IsNullOrWhiteSpace(state.DisplayName) ? state.AttackId : state.DisplayName,
+                DeliveryTypeLabel = GetPreviewDeliveryLabel(state)
             };
+            AddPreviewRoles(preview, state);
+            return preview;
         }
 
         public static string PreviewAttackEvent(AttackAuthoringState state, AttackPresentationEventKind eventKind)
@@ -344,6 +347,59 @@ namespace Deucarian.Attacks.Editor
                 default:
                     return GameContentAuthoringActionPreviewMode.Static;
             }
+        }
+
+        private static void AddPreviewRoles(GameContentAuthoringActionPreview preview, AttackAuthoringState state)
+        {
+            if (preview == null || state == null)
+                return;
+
+            switch (state.DeliveryMode)
+            {
+                case AttackRecipeDeliveryMode.Hitscan:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Source", string.Empty));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Beam", GetObjectLabel(state.BeamVfxPrefab, "beam/tracer"), state.BeamVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Impact", "Impact Point", state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab));
+                    break;
+                case AttackRecipeDeliveryMode.Area:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Origin", "Cast Origin"));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Radius", "AOE Radius", state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Targets", "Target Dummies"));
+                    break;
+                case AttackRecipeDeliveryMode.Aura:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Status Area", "Affected Area", state.TickVfxPrefab ?? state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Tick", "Tick Marker", state.TickVfxPrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Target", "Target Dummy"));
+                    break;
+                default:
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Source", string.Empty));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Projectile", GetObjectLabel(state.ProjectilePrefab, "projectile"), state.ProjectilePrefab));
+                    preview.Roles.Add(new GameContentAuthoringActionPreviewRole("Target", "Target Dummy"));
+                    break;
+            }
+        }
+
+        private static string GetPreviewDeliveryLabel(AttackAuthoringState state)
+        {
+            if (state == null)
+                return "Delivery";
+
+            switch (state.DeliveryMode)
+            {
+                case AttackRecipeDeliveryMode.Hitscan:
+                    return "Beam";
+                case AttackRecipeDeliveryMode.Area:
+                    return "AOE";
+                case AttackRecipeDeliveryMode.Aura:
+                    return "Status";
+                default:
+                    return state.Homing ? "Homing Projectile" : "Projectile";
+            }
+        }
+
+        private static string GetObjectLabel(UnityEngine.Object asset, string fallback)
+        {
+            return asset == null || string.IsNullOrWhiteSpace(asset.name) ? fallback : asset.name;
         }
 
         private static AudioClip GetAttackAudio(AttackAuthoringState state, AttackPresentationEventKind eventKind)
