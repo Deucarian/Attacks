@@ -9,6 +9,7 @@ using Deucarian.Attacks.Editor;
 using Deucarian.Attacks.Authoring;
 using Deucarian.Combat;
 using Deucarian.DefenseGames;
+using Deucarian.Editor;
 using Deucarian.Encounters;
 using Deucarian.GameContentAuthoring.Editor;
 using Deucarian.GameplayFoundation;
@@ -636,6 +637,9 @@ namespace Deucarian.Attacks.Tests
                 Assert.That(asset.StatusEffects.StatusEffects.Count, Is.EqualTo(1));
                 Assert.That(asset.StatusEffects.StatusEffects[0].StatusId, Is.EqualTo("status.test.edited"));
                 Assert.That(AttackRecipeAssetCreator.ValidateForUpdate(editState, asset).IsValid, Is.True);
+                IReadOnlyList<GameContentAuthoringPreviewRow> savedRows = AttackGameContentPreviewSummaries.BuildAttackRows(AttackGameContentPreviewSelection.FromAttackAsset(asset));
+                AssertRowContains(savedRows, "Damage", "12");
+                AssertRowContains(savedRows, "Delivery", "projectile.test.edited");
             }
             finally
             {
@@ -684,6 +688,210 @@ namespace Deucarian.Attacks.Tests
             {
                 UnityEngine.Object.DestroyImmediate(projectile);
                 UnityEngine.Object.DestroyImmediate(impact);
+            }
+        }
+
+        [Test]
+        public void AttackProviderV2Preview_EventRowsUseGlobalControlsOnly()
+        {
+            Assert.That(AttackProviderV2PreviewModel.EventRowsExposePreviewActions, Is.False);
+        }
+
+        [Test]
+        public void AttackProviderV2Preview_DraftAndUnsavedScopesExposeCompactChips()
+        {
+            var draft = new AttackAuthoringState();
+            var previewState = new AttackProviderV2State
+            {
+                PreviewMuted = true,
+                PreviewLoop = true,
+                PreviewSpeed = 1f,
+                PreviewRenderMode = GameContentAuthoringActionPreviewRenderMode.Game
+            };
+
+            AttackProviderV2PreviewScope draftScope = AttackProviderV2PreviewModel.GetScope(true, false);
+            IReadOnlyList<DeucarianEditorStatusChip> draftChips = AttackProviderV2PreviewModel.BuildChips(draft, previewState, draftScope);
+
+            Assert.That(AttackProviderV2PreviewModel.GetScopeLabel(draftScope), Is.EqualTo("Draft"));
+            Assert.That(AttackProviderV2PreviewModel.BuildHeaderTitle(draft, draftScope), Is.EqualTo("Preview Lab - New Attack Draft"));
+            AssertChip(draftChips, "Draft Preview", DeucarianEditorStatus.Info);
+            AssertChip(draftChips, "Muted", DeucarianEditorStatus.Disabled);
+            AssertChip(draftChips, "Game", DeucarianEditorStatus.Success);
+            AssertChip(draftChips, "Loop", DeucarianEditorStatus.Success);
+
+            draft.DisplayName = "Live Draft Bolt";
+            Assert.That(AttackProviderV2PreviewModel.BuildHeaderTitle(draft, draftScope), Is.EqualTo("Preview Lab - Live Draft Bolt"));
+
+            AttackProviderV2PreviewScope unsavedScope = AttackProviderV2PreviewModel.GetScope(false, true);
+            IReadOnlyList<DeucarianEditorStatusChip> unsavedChips = AttackProviderV2PreviewModel.BuildChips(draft, previewState, unsavedScope);
+
+            Assert.That(AttackProviderV2PreviewModel.GetScopeLabel(unsavedScope), Is.EqualTo("Unsaved"));
+            AssertChip(unsavedChips, "Unsaved Preview", DeucarianEditorStatus.Warning);
+        }
+
+        [Test]
+        public void AttackProviderV2Preview_CreateAndProviderSelectionClearTransientPreviewState()
+        {
+            var state = new AttackProviderV2State
+            {
+                EditingState = new AttackAuthoringState { DisplayName = "Dirty Edit" },
+                ActivePreviewKey = "selected.attack"
+            };
+
+            state.BeginCreate();
+
+            Assert.That(state.Creating, Is.True);
+            Assert.That(state.WizardStep, Is.EqualTo(0));
+            Assert.That(state.EditingState, Is.Null);
+            Assert.That(state.PreviewStatus, Is.EqualTo("Previewing draft"));
+
+            state.LeaveCreate();
+
+            Assert.That(state.Creating, Is.False);
+            Assert.That(state.PreviewStatus, Is.EqualTo("Previewing selected attack"));
+
+            var provider = new AttackAuthoringProvider();
+            AttackProviderV2State providerState = GetProviderV2State(provider);
+            providerState.BeginCreate();
+            providerState.ActivePreviewKey = "__draft_attack__";
+            providerState.EditingState = new AttackAuthoringState { DisplayName = "Unsaved Draft" };
+
+            provider.OnSelected();
+
+            Assert.That(providerState.Creating, Is.False);
+            Assert.That(providerState.ActivePreviewKey, Is.Empty);
+            Assert.That(providerState.EditingState, Is.Null);
+            Assert.That(providerState.PreviewStatus, Is.EqualTo("Preview idle"));
+        }
+
+        [Test]
+        public void AttackProviderV2Preview_DeliverySwitchUpdatesPreviewModeAndClearsStaleAssets()
+        {
+            var projectile = new GameObject("projectile.live-draft");
+            var beam = new GameObject("beam.live-draft");
+            try
+            {
+                var draft = new AttackAuthoringState
+                {
+                    DeliveryMode = AttackRecipeDeliveryMode.Projectile,
+                    ProjectilePrefab = projectile,
+                    BeamVfxPrefab = beam
+                };
+
+                GameContentAuthoringActionPreview projectilePreview = AttackGameContentPreviewActions.BuildActionPreview(draft, true, 0d);
+
+                Assert.That(projectilePreview.Mode, Is.EqualTo(GameContentAuthoringActionPreviewMode.Projectile));
+                Assert.That(projectilePreview.ProjectilePrefab, Is.SameAs(projectile));
+                Assert.That(projectilePreview.BeamVfxPrefab, Is.Null);
+                Assert.That(projectilePreview.PrimaryAsset, Is.SameAs(projectile));
+
+                draft.DeliveryMode = AttackRecipeDeliveryMode.Hitscan;
+                GameContentAuthoringActionPreview beamPreview = AttackGameContentPreviewActions.BuildActionPreview(draft, true, 0d);
+
+                Assert.That(beamPreview.Mode, Is.EqualTo(GameContentAuthoringActionPreviewMode.Hitscan));
+                Assert.That(beamPreview.ProjectilePrefab, Is.Null);
+                Assert.That(beamPreview.BeamVfxPrefab, Is.SameAs(beam));
+                Assert.That(beamPreview.PrimaryAsset, Is.SameAs(beam));
+                AssertPreviewRoles(beamPreview, "Source", "Beam", "Impact");
+
+                draft.DeliveryMode = AttackRecipeDeliveryMode.Projectile;
+                GameContentAuthoringActionPreview projectileAgain = AttackGameContentPreviewActions.BuildActionPreview(draft, true, 0d);
+
+                Assert.That(projectileAgain.ProjectilePrefab, Is.SameAs(projectile));
+                Assert.That(projectileAgain.BeamVfxPrefab, Is.Null);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectile);
+                UnityEngine.Object.DestroyImmediate(beam);
+            }
+        }
+
+        [Test]
+        public void AttackProviderV2Preview_DraftPresentationChangesUpdatePreviewData()
+        {
+            var projectileA = new GameObject("projectile.draft.a");
+            var projectileB = new GameObject("projectile.draft.b");
+            var impactA = new GameObject("impact.draft.a");
+            var impactB = new GameObject("impact.draft.b");
+            try
+            {
+                var draft = new AttackAuthoringState
+                {
+                    DisplayName = "Draft A",
+                    AttackId = "attack.draft.a",
+                    DeliveryMode = AttackRecipeDeliveryMode.Projectile,
+                    ProjectilePrefab = projectileA,
+                    ImpactVfxPresentationPrefab = impactA,
+                    DamageAmount = 4f,
+                    DamageTypeId = Physical.Value
+                };
+
+                GameContentAuthoringActionPreview previewA = AttackGameContentPreviewActions.BuildActionPreview(draft, true, 0d);
+                Assert.That(previewA.PrimaryAsset, Is.SameAs(projectileA));
+                Assert.That(previewA.ImpactVfxPrefab, Is.SameAs(impactA));
+
+                draft.DisplayName = "Draft B";
+                draft.ProjectilePrefab = projectileB;
+                draft.ImpactVfxPresentationPrefab = impactB;
+                draft.DamageAmount = 17f;
+
+                GameContentAuthoringActionPreview previewB = AttackGameContentPreviewActions.BuildActionPreview(draft, true, 0d);
+                IReadOnlyList<GameContentAuthoringPreviewRow> rows = AttackGameContentPreviewSummaries.BuildAttackRows(draft);
+
+                Assert.That(previewB.Label, Is.EqualTo("Draft B"));
+                Assert.That(previewB.PrimaryAsset, Is.SameAs(projectileB));
+                Assert.That(previewB.ImpactVfxPrefab, Is.SameAs(impactB));
+                AssertRowContains(rows, "Damage", "17");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectileA);
+                UnityEngine.Object.DestroyImmediate(projectileB);
+                UnityEngine.Object.DestroyImmediate(impactA);
+                UnityEngine.Object.DestroyImmediate(impactB);
+            }
+        }
+
+        [Test]
+        public void AttackProviderV2Preview_UnsavedEditUpdatesPreviewAndRevertRestoresSavedData()
+        {
+            AttackDefinitionAsset asset = AttackDefinitionAsset.CreateTransient(
+                "attack.preview.unsaved",
+                "Saved Preview",
+                AttackRecipeDeliveryMode.Hitscan,
+                Physical.Value,
+                6f,
+                12,
+                5f,
+                AttackRecipeTargetingMode.ForwardDirection);
+            try
+            {
+                AttackAuthoringState edit = AttackGameContentPreviewSelection.FromAttackAsset(asset);
+                edit.DisplayName = "Unsaved Preview";
+                edit.DamageAmount = 11f;
+                edit.Range = 9f;
+
+                IReadOnlyList<GameContentAuthoringPreviewRow> unsavedRows = AttackGameContentPreviewSummaries.BuildAttackRows(edit);
+                AttackProviderV2PreviewScope scope = AttackProviderV2PreviewModel.GetScope(false, true);
+
+                Assert.That(asset.Mechanics.DamageAmount, Is.EqualTo(6f));
+                Assert.That(AttackProviderV2PreviewModel.GetScopeLabel(scope), Is.EqualTo("Unsaved"));
+                AssertChip(AttackProviderV2PreviewModel.BuildChips(edit, new AttackProviderV2State(), scope), "Unsaved Preview", DeucarianEditorStatus.Warning);
+                AssertRowContains(unsavedRows, "Name", "Unsaved Preview");
+                AssertRowContains(unsavedRows, "Damage", "11");
+                AssertRowContains(unsavedRows, "Range", "9");
+
+                AttackAuthoringState reverted = AttackGameContentPreviewSelection.FromAttackAsset(asset);
+                IReadOnlyList<GameContentAuthoringPreviewRow> revertedRows = AttackGameContentPreviewSummaries.BuildAttackRows(reverted);
+
+                AssertRowContains(revertedRows, "Name", "Saved Preview");
+                AssertRowContains(revertedRows, "Damage", "6");
+                AssertRowContains(revertedRows, "Range", "5");
+            }
+            finally
+            {
+                AttackRecipeAssetCreator.DestroyTransient(asset);
             }
         }
 
@@ -1146,6 +1354,20 @@ namespace Deucarian.Attacks.Tests
             GameContentAuthoringActionPreviewRole match = preview.Roles.FirstOrDefault(candidate => candidate != null && string.Equals(candidate.Role, role, StringComparison.Ordinal));
             Assert.That(match, Is.Not.Null, "Expected preview role " + role + ".");
             return match;
+        }
+
+        private static void AssertChip(IReadOnlyList<DeucarianEditorStatusChip> chips, string label, DeucarianEditorStatus status)
+        {
+            DeucarianEditorStatusChip match = chips.FirstOrDefault(candidate => string.Equals(candidate.Label, label, StringComparison.Ordinal));
+            Assert.That(match.Label, Is.EqualTo(label), "Expected preview chip " + label + ".");
+            Assert.That(match.Status, Is.EqualTo(status), "Preview chip " + label + " had the wrong status.");
+        }
+
+        private static AttackProviderV2State GetProviderV2State(AttackAuthoringProvider provider)
+        {
+            FieldInfo field = typeof(AttackAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "AttackAuthoringProvider._v2State was not found.");
+            return (AttackProviderV2State)field.GetValue(provider);
         }
 
         private static GameContentLibraryItem CreateLibraryItem(string key, UnityEngine.Object asset, GameContentLibraryKind kind, string displayName)

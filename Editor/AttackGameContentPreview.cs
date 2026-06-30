@@ -259,16 +259,20 @@ namespace Deucarian.Attacks.Editor
         public static GameContentAuthoringActionPreview BuildActionPreview(AttackAuthoringState state, bool playing, double startTime)
         {
             if (state == null) return null;
+            bool projectileMode = state.DeliveryMode == AttackRecipeDeliveryMode.Projectile;
+            bool hitscanMode = state.DeliveryMode == AttackRecipeDeliveryMode.Hitscan;
+            bool auraMode = state.DeliveryMode == AttackRecipeDeliveryMode.Aura;
+            bool statusPreview = state.IncludeStatusEffect || auraMode;
             var preview = new GameContentAuthoringActionPreview
             {
                 PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(state),
-                ProjectilePrefab = state.ProjectilePrefab,
-                BeamVfxPrefab = state.BeamVfxPrefab,
+                ProjectilePrefab = projectileMode ? state.ProjectilePrefab : null,
+                BeamVfxPrefab = hitscanMode ? state.BeamVfxPrefab : null,
                 CastVfxPrefab = state.CastVfxPrefab,
                 FireVfxPrefab = state.FireVfxPrefab,
                 ImpactVfxPrefab = state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab,
-                TickVfxPrefab = state.TickVfxPrefab,
-                ExpireVfxPrefab = state.ExpireVfxPrefab,
+                TickVfxPrefab = statusPreview ? state.TickVfxPrefab : null,
+                ExpireVfxPrefab = statusPreview ? state.ExpireVfxPrefab : null,
                 Mode = GetActionPreviewMode(state.DeliveryMode),
                 IncludeStatusEffect = state.IncludeStatusEffect,
                 Playing = playing,

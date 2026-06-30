@@ -43,6 +43,38 @@ namespace Deucarian.Attacks.Editor
             PreviewStatus = "Preview stopped";
         }
 
+        public void BeginCreate()
+        {
+            Creating = true;
+            DetailScroll = Vector2.zero;
+            WizardStep = 0;
+            ClearEditingState();
+            LastPreviewAudioPhase = -1;
+            PreviewStatus = "Previewing draft";
+        }
+
+        public void LeaveCreate()
+        {
+            Creating = false;
+            DetailScroll = Vector2.zero;
+            LastPreviewAudioPhase = -1;
+            PreviewStatus = "Previewing selected attack";
+        }
+
+        public void ResetProviderSession()
+        {
+            Creating = false;
+            DetailPage = 0;
+            WizardStep = 0;
+            ListScroll = Vector2.zero;
+            DetailScroll = Vector2.zero;
+            PreviewScroll = Vector2.zero;
+            ActivePreviewKey = string.Empty;
+            LastPreviewAudioPhase = -1;
+            PreviewStatus = "Preview idle";
+            ClearEditingState();
+        }
+
         public void SetPreviewSource(string key, AttackGameContentPreviewController controller)
         {
             key = key ?? string.Empty;
@@ -183,10 +215,7 @@ namespace Deucarian.Attacks.Editor
             {
                 if (DeucarianEditorButtons.Secondary("Create New", true, GUILayout.Height(24f)))
                 {
-                    state.Creating = true;
-                    state.ClearEditingState();
-                    state.DetailScroll = Vector2.zero;
-                    context.ClearSelection();
+                    state.BeginCreate();
                     context.RequestRepaint();
                 }
             }
@@ -565,8 +594,7 @@ namespace Deucarian.Attacks.Editor
                 GUILayout.FlexibleSpace();
                 if (DeucarianEditorMiniToolbar.Button("Browse", context.AuthoredItems.Count > 0, GUILayout.Width(60f), GUILayout.Height(22f)))
                 {
-                    state.Creating = false;
-                    state.DetailScroll = Vector2.zero;
+                    state.LeaveCreate();
                     context.RequestRepaint();
                 }
             }
@@ -745,8 +773,7 @@ namespace Deucarian.Attacks.Editor
                     if (result != null && result.Succeeded)
                     {
                         context.RefreshLibrary();
-                        state.Creating = false;
-                        state.DetailScroll = Vector2.zero;
+                        state.LeaveCreate();
                     }
                 }
 
@@ -805,13 +832,17 @@ namespace Deucarian.Attacks.Editor
                 actionPreview.TargetContextLabel = targetOption == null ? string.Empty : targetOption.Label;
             }
 
+            AttackProviderV2PreviewScope scope = AttackProviderV2PreviewModel.GetScope(
+                state.Creating,
+                state.EditingContext != null && state.EditingContext.IsDirty);
+
             GameContentPreviewLabRenderer.Draw(
                 context.Preview,
                 new GameContentPreviewLabModel
                 {
-                    Title = "Preview Lab",
-                    PreviewTitle = "Attack View",
-                    ScopeLabel = state.Creating ? "Draft" : state.EditingContext != null && state.EditingContext.IsDirty ? "Unsaved" : "Selected",
+                    Title = AttackProviderV2PreviewModel.BuildHeaderTitle(source, scope),
+                    PreviewTitle = AttackProviderV2PreviewModel.BuildViewportTitle(source, scope),
+                    ScopeLabel = AttackProviderV2PreviewModel.GetScopeLabel(scope),
                     PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(source),
                     EmptyText = "No visual asset assigned.",
                     PreviewOptions = new GameContentAuthoringObjectPreviewOptions
@@ -821,19 +852,8 @@ namespace Deucarian.Attacks.Editor
                     },
                     DrawControls = () => DrawPreviewControls(context, source, state, actionPreview),
                     DrawContext = () => DrawPreviewContextControls(state, sourceOptions, targetOptions),
-                    DrawBody = () => DrawPresentation(source, eventKind =>
-                    {
-                        state.PreviewStatus = AttackGameContentPreviewActions.PreviewAttackEvent(source, eventKind, state.PreviewMuted);
-                        context.Preview.SetStatus(state.PreviewStatus);
-                    }, state),
-                    Chips = new[]
-                    {
-                        new DeucarianEditorStatusChip(HasAnyVisual(source) ? "Visual assets" : "No VFX", HasAnyVisual(source) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled),
-                        new DeucarianEditorStatusChip(state.PreviewMuted ? "Muted" : HasAnyAudio(source) ? "Audio on" : "No audio", state.PreviewMuted || !HasAnyAudio(source) ? DeucarianEditorStatus.Disabled : DeucarianEditorStatus.Success),
-                        new DeucarianEditorStatusChip(state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? "Game" : "Debug", state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
-                        new DeucarianEditorStatusChip(state.PreviewLoop ? "Loop" : "Once", state.PreviewLoop ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
-                        new DeucarianEditorStatusChip(FormatFloat(state.PreviewSpeed) + "x", DeucarianEditorStatus.Info)
-                    }
+                    DrawBody = () => DrawPreviewBody(context, source, state),
+                    Chips = AttackProviderV2PreviewModel.BuildChips(source, state, scope)
                 });
 
             string timelineAudioStatus = AttackGameContentPreviewActions.PreviewTimelineAudio(source, actionPreview, state.PreviewMuted, ref state.LastPreviewAudioPhase);
@@ -850,6 +870,22 @@ namespace Deucarian.Attacks.Editor
                 context.RequestRepaint();
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawPreviewBody(GameContentAuthoringSurfaceContext context, AttackAuthoringState source, AttackProviderV2State state)
+        {
+            context.Preview.DrawSummaryRows(AttackGameContentPreviewSummaries.BuildAttackRows(source));
+            Action<AttackPresentationEventKind> previewEvent = null;
+            if (AttackProviderV2PreviewModel.EventRowsExposePreviewActions)
+            {
+                previewEvent = eventKind =>
+                {
+                    state.PreviewStatus = AttackGameContentPreviewActions.PreviewAttackEvent(source, eventKind, state.PreviewMuted);
+                    context.Preview.SetStatus(state.PreviewStatus);
+                };
+            }
+
+            DrawPresentation(source, previewEvent, state);
         }
 
         private static void DrawPreviewControls(
@@ -1193,6 +1229,130 @@ namespace Deucarian.Attacks.Editor
 
                 return headerStyle;
             }
+        }
+    }
+
+    internal enum AttackProviderV2PreviewScope
+    {
+        Selected,
+        Draft,
+        UnsavedEdit
+    }
+
+    internal static class AttackProviderV2PreviewModel
+    {
+        public const bool EventRowsExposePreviewActions = false;
+
+        public static AttackProviderV2PreviewScope GetScope(bool creating, bool dirty)
+        {
+            if (creating)
+                return AttackProviderV2PreviewScope.Draft;
+            return dirty ? AttackProviderV2PreviewScope.UnsavedEdit : AttackProviderV2PreviewScope.Selected;
+        }
+
+        public static string GetScopeLabel(AttackProviderV2PreviewScope scope)
+        {
+            switch (scope)
+            {
+                case AttackProviderV2PreviewScope.Draft:
+                    return "Draft";
+                case AttackProviderV2PreviewScope.UnsavedEdit:
+                    return "Unsaved";
+                default:
+                    return "Selected";
+            }
+        }
+
+        public static string BuildHeaderTitle(AttackAuthoringState source, AttackProviderV2PreviewScope scope)
+        {
+            string sourceName = GetSourceName(source, scope);
+            return string.IsNullOrWhiteSpace(sourceName)
+                ? "Preview Lab"
+                : "Preview Lab - " + sourceName;
+        }
+
+        public static string BuildViewportTitle(AttackAuthoringState source, AttackProviderV2PreviewScope scope)
+        {
+            return GetSourceName(source, scope);
+        }
+
+        public static IReadOnlyList<DeucarianEditorStatusChip> BuildChips(
+            AttackAuthoringState source,
+            AttackProviderV2State state,
+            AttackProviderV2PreviewScope scope)
+        {
+            var chips = new List<DeucarianEditorStatusChip>
+            {
+                BuildScopeChip(scope),
+                new DeucarianEditorStatusChip(HasAnyVisual(source) ? "VFX" : "No VFX", HasAnyVisual(source) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled),
+                new DeucarianEditorStatusChip(state != null && state.PreviewMuted ? "Muted" : HasAnyAudio(source) ? "Audio" : "No audio", state == null || state.PreviewMuted || !HasAnyAudio(source) ? DeucarianEditorStatus.Disabled : DeucarianEditorStatus.Success),
+                new DeucarianEditorStatusChip(state != null && state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Debug ? "Debug" : "Game", state != null && state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Debug ? DeucarianEditorStatus.Info : DeucarianEditorStatus.Success),
+                new DeucarianEditorStatusChip(state != null && state.PreviewLoop ? "Loop" : "Once", state != null && state.PreviewLoop ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
+                new DeucarianEditorStatusChip(FormatFloat(state == null ? 1f : state.PreviewSpeed) + "x", DeucarianEditorStatus.Info)
+            };
+
+            return chips;
+        }
+
+        private static DeucarianEditorStatusChip BuildScopeChip(AttackProviderV2PreviewScope scope)
+        {
+            switch (scope)
+            {
+                case AttackProviderV2PreviewScope.Draft:
+                    return new DeucarianEditorStatusChip("Draft Preview", DeucarianEditorStatus.Info);
+                case AttackProviderV2PreviewScope.UnsavedEdit:
+                    return new DeucarianEditorStatusChip("Unsaved Preview", DeucarianEditorStatus.Warning);
+                default:
+                    return new DeucarianEditorStatusChip("Selected Preview", DeucarianEditorStatus.Success);
+            }
+        }
+
+        private static string GetSourceName(AttackAuthoringState source, AttackProviderV2PreviewScope scope)
+        {
+            if (source != null)
+            {
+                if (scope == AttackProviderV2PreviewScope.Draft && IsDefaultExampleDraft(source))
+                    return "New Attack Draft";
+                if (!string.IsNullOrWhiteSpace(source.DisplayName))
+                    return source.DisplayName.Trim();
+                if (!string.IsNullOrWhiteSpace(source.AttackId))
+                    return source.AttackId.Trim();
+            }
+
+            return scope == AttackProviderV2PreviewScope.Draft ? "New Attack Draft" : "Attack View";
+        }
+
+        private static bool IsDefaultExampleDraft(AttackAuthoringState source)
+        {
+            return source != null
+                && string.Equals(source.DisplayName, "Fire Orb", StringComparison.Ordinal)
+                && string.Equals(source.AttackId, "attack.example.fire-orb", StringComparison.Ordinal);
+        }
+
+        private static bool HasAnyVisual(AttackAuthoringState state)
+        {
+            return state != null && (state.ProjectilePrefab != null
+                || state.BeamVfxPrefab != null
+                || state.ImpactVfxPrefab != null
+                || state.CastVfxPrefab != null
+                || state.FireVfxPrefab != null
+                || state.ImpactVfxPresentationPrefab != null
+                || state.TickVfxPrefab != null
+                || state.ExpireVfxPrefab != null);
+        }
+
+        private static bool HasAnyAudio(AttackAuthoringState state)
+        {
+            return state != null && (state.CastAudio != null
+                || state.FireAudio != null
+                || state.ImpactAudio != null
+                || state.TickAudio != null
+                || state.ExpireAudio != null);
+        }
+
+        private static string FormatFloat(float value)
+        {
+            return value.ToString("0.##", CultureInfo.InvariantCulture);
         }
     }
 

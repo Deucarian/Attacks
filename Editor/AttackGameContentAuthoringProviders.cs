@@ -30,7 +30,10 @@ namespace Deucarian.Attacks.Editor
         public string Description => "Create a root AttackDefinition with mechanics, targeting, delivery, status, and presentation sections.";
         public int SortOrder => 100;
         public bool Enabled => true;
-        public void OnSelected() { }
+        public void OnSelected()
+        {
+            _v2State.ResetProviderSession();
+        }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
         public void StopPreview()
         {
