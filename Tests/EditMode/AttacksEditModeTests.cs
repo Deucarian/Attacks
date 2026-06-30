@@ -896,6 +896,388 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void EnemyProvider_UsesCustomAuthoringSurfaceWithoutMigratingWave()
+        {
+            var enemyProvider = new EnemyAuthoringProvider();
+            var waveProvider = new WaveAuthoringProvider();
+
+            Assert.That(enemyProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+            Assert.That(waveProvider, Is.Not.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+        }
+
+        [Test]
+        public void EnemyProviderV2ListModel_ClassifiesRoles()
+        {
+            EnemyDefinitionAsset basic = EnemyDefinitionAsset.CreateTransient("enemy.test.basic", "Basic", EnemyRole.Basic, 8f, 2f, 1, 3f, Physical.Value);
+            EnemyDefinitionAsset fast = EnemyDefinitionAsset.CreateTransient("enemy.test.fast", "Fast", EnemyRole.Fast, 8f, 3f, 1, 3f, Physical.Value);
+            EnemyDefinitionAsset tank = EnemyDefinitionAsset.CreateTransient("enemy.test.tank", "Tank", EnemyRole.Tank, 20f, 1.2f, 2, 5f, Physical.Value);
+            EnemyDefinitionAsset swarm = EnemyDefinitionAsset.CreateTransient("enemy.test.swarm", "Swarm", EnemyRole.Swarm, 4f, 2.8f, 1, 1f, Physical.Value);
+            EnemyDefinitionAsset boss = EnemyDefinitionAsset.CreateTransient("enemy.test.boss", "Boss", EnemyRole.Boss, 60f, 1.4f, 8, 9f, Physical.Value);
+            EnemyDefinitionAsset custom = EnemyDefinitionAsset.CreateTransient("enemy.test.custom", "Custom", (EnemyRole)999, 12f, 2f, 1, 3f, Physical.Value);
+            try
+            {
+                Assert.That(EnemyProviderV2ListItem.GetRoleLabelForTests(basic), Is.EqualTo("Basic"));
+                Assert.That(EnemyProviderV2ListItem.GetRoleLabelForTests(fast), Is.EqualTo("Fast"));
+                Assert.That(EnemyProviderV2ListItem.GetRoleLabelForTests(tank), Is.EqualTo("Tank"));
+                Assert.That(EnemyProviderV2ListItem.GetRoleLabelForTests(swarm), Is.EqualTo("Swarm"));
+                Assert.That(EnemyProviderV2ListItem.GetRoleLabelForTests(boss), Is.EqualTo("Boss"));
+                Assert.That(EnemyProviderV2ListItem.GetRoleLabelForTests(custom), Is.EqualTo("Custom"));
+            }
+            finally
+            {
+                EnemyDefinitionAssetCreator.DestroyTransient(basic);
+                EnemyDefinitionAssetCreator.DestroyTransient(fast);
+                EnemyDefinitionAssetCreator.DestroyTransient(tank);
+                EnemyDefinitionAssetCreator.DestroyTransient(swarm);
+                EnemyDefinitionAssetCreator.DestroyTransient(boss);
+                EnemyDefinitionAssetCreator.DestroyTransient(custom);
+            }
+        }
+
+        [Test]
+        public void EnemyProviderV2Preview_EventRowsUseGlobalControlsOnly()
+        {
+            Assert.That(EnemyProviderV2PreviewModel.EventRowsExposePreviewActions, Is.False);
+            Assert.That(EnemyProviderV2PreviewModel.ExposesRedundantSelectButton, Is.False);
+        }
+
+        [Test]
+        public void EnemyProviderV2Preview_DraftAndUnsavedScopesExposeCompactChips()
+        {
+            var draft = new EnemyAuthoringState();
+            var previewState = new EnemyProviderV2State
+            {
+                PreviewMuted = true,
+                PreviewLoop = true,
+                PreviewSpeed = 1f,
+                PreviewRenderMode = GameContentAuthoringActionPreviewRenderMode.Game
+            };
+
+            EnemyProviderV2PreviewScope draftScope = EnemyProviderV2PreviewModel.GetScope(true, false);
+            IReadOnlyList<DeucarianEditorStatusChip> draftChips = EnemyProviderV2PreviewModel.BuildChips(draft, previewState, draftScope);
+
+            Assert.That(EnemyProviderV2PreviewModel.GetScopeLabel(draftScope), Is.EqualTo("Draft"));
+            Assert.That(EnemyProviderV2PreviewModel.BuildHeaderTitle(draft, draftScope), Is.EqualTo("Preview Lab - New Enemy Draft"));
+            AssertChip(draftChips, "Draft Preview", DeucarianEditorStatus.Info);
+            AssertChip(draftChips, "No Model", DeucarianEditorStatus.Error);
+            AssertChip(draftChips, "Muted", DeucarianEditorStatus.Disabled);
+            AssertChip(draftChips, "Game", DeucarianEditorStatus.Success);
+
+            draft.DisplayName = "Live Draft Enemy";
+            Assert.That(EnemyProviderV2PreviewModel.BuildHeaderTitle(draft, draftScope), Is.EqualTo("Preview Lab - Live Draft Enemy"));
+
+            EnemyProviderV2PreviewScope unsavedScope = EnemyProviderV2PreviewModel.GetScope(false, true);
+            IReadOnlyList<DeucarianEditorStatusChip> unsavedChips = EnemyProviderV2PreviewModel.BuildChips(draft, previewState, unsavedScope);
+
+            Assert.That(EnemyProviderV2PreviewModel.GetScopeLabel(unsavedScope), Is.EqualTo("Unsaved"));
+            AssertChip(unsavedChips, "Unsaved Preview", DeucarianEditorStatus.Warning);
+        }
+
+        [Test]
+        public void EnemyProviderV2Preview_CreateAndProviderSelectionClearTransientPreviewState()
+        {
+            var state = new EnemyProviderV2State
+            {
+                EditingState = new EnemyAuthoringState { DisplayName = "Dirty Enemy Edit" },
+                ActivePreviewKey = "selected.enemy"
+            };
+
+            state.BeginCreate();
+
+            Assert.That(state.Creating, Is.True);
+            Assert.That(state.WizardStep, Is.EqualTo(0));
+            Assert.That(state.EditingState, Is.Null);
+            Assert.That(state.PreviewStatus, Is.EqualTo("Previewing draft"));
+
+            state.LeaveCreate();
+
+            Assert.That(state.Creating, Is.False);
+            Assert.That(state.PreviewStatus, Is.EqualTo("Previewing selected enemy"));
+
+            var provider = new EnemyAuthoringProvider();
+            EnemyProviderV2State providerState = GetEnemyProviderV2State(provider);
+            providerState.BeginCreate();
+            providerState.ActivePreviewKey = "__draft_enemy__";
+            providerState.EditingState = new EnemyAuthoringState { DisplayName = "Unsaved Draft" };
+
+            provider.OnSelected();
+
+            Assert.That(providerState.Creating, Is.False);
+            Assert.That(providerState.ActivePreviewKey, Is.Empty);
+            Assert.That(providerState.EditingState, Is.Null);
+            Assert.That(providerState.PreviewStatus, Is.EqualTo("Preview idle"));
+        }
+
+        [Test]
+        public void SelectedEnemyPreviewState_UsesSelectedAssetData()
+        {
+            var prefab = new GameObject("DustMitePreviewPrefab");
+            EnemyDefinitionAsset selected = EnemyDefinitionAsset.CreateTransient(
+                "enemy.moss.dust-mite",
+                "Dust Mite",
+                EnemyRole.Fast,
+                6f,
+                3.5f,
+                1,
+                2f,
+                "damage.moss.dust",
+                prefab: prefab);
+            try
+            {
+                var provider = new EnemyAuthoringProvider();
+                var selection = new GameContentAuthoringPreviewSelection(
+                    provider.ProviderId,
+                    selected.DisplayName,
+                    selected.Id,
+                    "Enemies",
+                    "Assets/GameContent/Enemies/enemy.moss.dust-mite.asset",
+                    selected);
+                var context = new GameContentAuthoringPreviewContext(null, provider, selectedExistingItem: selection);
+
+                EnemyAuthoringState state = AttackGameContentPreviewSelection.ResolveEnemyState(context, new EnemyAuthoringState());
+                IReadOnlyList<GameContentAuthoringPreviewRow> rows = AttackGameContentPreviewSummaries.BuildEnemyRows(state);
+                string flattened = FlattenRows(rows);
+
+                Assert.AreEqual("enemy.moss.dust-mite", state.EnemyId);
+                Assert.AreEqual("Dust Mite", state.DisplayName);
+                Assert.AreEqual(EnemyRole.Fast, state.Role);
+                Assert.AreSame(prefab, state.Prefab);
+                AssertRowContains(rows, "ID", "enemy.moss.dust-mite");
+                AssertRowContains(rows, "Name", "Dust Mite");
+                AssertRowContains(rows, "Speed", "3.5");
+                Assert.IsFalse(flattened.Contains("enemy.example"));
+                Assert.IsFalse(flattened.Contains("Basic Enemy"));
+            }
+            finally
+            {
+                EnemyDefinitionAssetCreator.DestroyTransient(selected);
+                UnityEngine.Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void EnemyProviderV2Preview_BuildsGameAndDebugPreviewFromSelectedPrefab()
+        {
+            var prefab = new GameObject("CableBeetlePreviewPrefab");
+            try
+            {
+                var enemy = new EnemyAuthoringState
+                {
+                    DisplayName = "Cable Beetle",
+                    EnemyId = "enemy.moss.cable-beetle",
+                    Role = EnemyRole.Tank,
+                    Prefab = prefab
+                };
+
+                GameContentAuthoringActionPreview preview = EnemyProviderV2View.BuildEnemyActionPreview(enemy, true, 5d);
+
+                Assert.That(preview, Is.Not.Null);
+                Assert.That(preview.Mode, Is.EqualTo(GameContentAuthoringActionPreviewMode.Static));
+                Assert.That(preview.PrimaryAsset, Is.SameAs(prefab));
+                Assert.That(preview.TargetPrefab, Is.SameAs(prefab));
+                Assert.That(preview.DeliveryTypeLabel, Is.EqualTo("Tank enemy"));
+                AssertPreviewRoles(preview, "Spawn", "Enemy", "Hit");
+                Assert.That(GameContentAuthoringObjectPreviewUtility.RequestsRoleLabels(preview), Is.False);
+                preview.RenderMode = GameContentAuthoringActionPreviewRenderMode.Debug;
+                Assert.That(GameContentAuthoringObjectPreviewUtility.RequestsRoleLabels(preview), Is.True);
+                Assert.That(PreviewRole(preview, "Enemy").Asset, Is.SameAs(prefab));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void EnemyProviderV2Preview_UnsavedEditUpdatesPreviewAndRevertRestoresSavedData()
+        {
+            var prefab = new GameObject("EnemyUnsavedPreviewPrefab");
+            EnemyDefinitionAsset asset = EnemyDefinitionAsset.CreateTransient(
+                "enemy.preview.unsaved",
+                "Saved Enemy",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value,
+                prefab: prefab);
+            try
+            {
+                EnemyAuthoringState edit = AttackGameContentPreviewSelection.FromEnemyAsset(asset);
+                edit.DisplayName = "Unsaved Enemy";
+                edit.MaximumHealth = 18f;
+                edit.MoveSpeed = 4f;
+
+                IReadOnlyList<GameContentAuthoringPreviewRow> unsavedRows = AttackGameContentPreviewSummaries.BuildEnemyRows(edit);
+                EnemyProviderV2PreviewScope scope = EnemyProviderV2PreviewModel.GetScope(false, true);
+
+                Assert.That(asset.Stats.MaximumHealth, Is.EqualTo(8f));
+                Assert.That(EnemyProviderV2PreviewModel.GetScopeLabel(scope), Is.EqualTo("Unsaved"));
+                AssertChip(EnemyProviderV2PreviewModel.BuildChips(edit, new EnemyProviderV2State(), scope), "Unsaved Preview", DeucarianEditorStatus.Warning);
+                AssertRowContains(unsavedRows, "Name", "Unsaved Enemy");
+                AssertRowContains(unsavedRows, "Health", "18");
+                AssertRowContains(unsavedRows, "Speed", "4");
+
+                EnemyAuthoringState reverted = AttackGameContentPreviewSelection.FromEnemyAsset(asset);
+                IReadOnlyList<GameContentAuthoringPreviewRow> revertedRows = AttackGameContentPreviewSummaries.BuildEnemyRows(reverted);
+
+                AssertRowContains(revertedRows, "Name", "Saved Enemy");
+                AssertRowContains(revertedRows, "Health", "8");
+                AssertRowContains(revertedRows, "Speed", "2");
+            }
+            finally
+            {
+                EnemyDefinitionAssetCreator.DestroyTransient(asset);
+                UnityEngine.Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void EnemyDefinitionAssetCreator_UpdateExistingAssetSavesSelectedEnemySections()
+        {
+            string rootFolder = "Assets/__EnemyGcaV2EditTests_" + Guid.NewGuid().ToString("N");
+            GameObject prefabSource = null;
+            try
+            {
+                string folderName = rootFolder.Substring("Assets/".Length);
+                AssetDatabase.CreateFolder("Assets", folderName);
+                prefabSource = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                prefabSource.name = "EnemyEditPrefab";
+                GameObject prefab = PrefabUtility.SaveAsPrefabAsset(prefabSource, rootFolder + "/EnemyEditPrefab.prefab");
+                UnityEngine.Object.DestroyImmediate(prefabSource);
+                prefabSource = null;
+
+                var createState = new EnemyAuthoringState
+                {
+                    EnemyId = "enemy.test.v2-edit." + Guid.NewGuid().ToString("N"),
+                    DisplayName = "Before Enemy Edit",
+                    TagsCsv = "before",
+                    OutputRoot = rootFolder,
+                    Role = EnemyRole.Basic,
+                    Prefab = prefab,
+                    MaximumHealth = 8f,
+                    MoveSpeed = 2f,
+                    RewardValue = 1,
+                    ContactDamage = 3f,
+                    DamageTypeId = Physical.Value,
+                    CollisionRadius = 0.3f
+                };
+
+                GameContentCreationResult created = EnemyDefinitionAssetCreator.CreateAssets(createState);
+                Assert.That(created.Succeeded, Is.True, created.Message);
+                var asset = (EnemyDefinitionAsset)created.CreatedRoot;
+                Assert.That(asset, Is.Not.Null);
+
+                EnemyAuthoringState editState = AttackGameContentPreviewSelection.FromEnemyAsset(asset);
+                editState.DisplayName = "After Enemy Edit";
+                editState.TagsCsv = "edited, enemy-v2";
+                editState.Role = EnemyRole.Tank;
+                editState.MaximumHealth = 24f;
+                editState.MoveSpeed = 1.25f;
+                editState.RewardValue = 3;
+                editState.ContactDamage = 7f;
+                editState.DamageTypeId = "damage.test.edited";
+                editState.CollisionRadius = 0.55f;
+
+                GameContentCreationResult saved = EnemyDefinitionAssetCreator.UpdateExistingAsset(asset, editState);
+
+                Assert.That(saved.Succeeded, Is.True, saved.Message);
+                Assert.That(asset.DisplayName, Is.EqualTo("After Enemy Edit"));
+                Assert.That(asset.Tags, Does.Contain("edited"));
+                Assert.That(asset.Role, Is.EqualTo(EnemyRole.Tank));
+                Assert.That(asset.Stats.MaximumHealth, Is.EqualTo(24f));
+                Assert.That(asset.Stats.MoveSpeed, Is.EqualTo(1.25f));
+                Assert.That(asset.Stats.RewardValue, Is.EqualTo(3));
+                Assert.That(asset.Stats.ContactDamage, Is.EqualTo(7f));
+                Assert.That(asset.Stats.DamageTypeId, Is.EqualTo("damage.test.edited"));
+                Assert.That(asset.Stats.CollisionRadius, Is.EqualTo(0.55f));
+                Assert.That(asset.Presentation.Prefab, Is.SameAs(prefab));
+                Assert.That(EnemyDefinitionAssetCreator.ValidateForUpdate(editState, asset).IsValid, Is.True);
+                IReadOnlyList<GameContentAuthoringPreviewRow> savedRows = AttackGameContentPreviewSummaries.BuildEnemyRows(AttackGameContentPreviewSelection.FromEnemyAsset(asset));
+                AssertRowContains(savedRows, "Health", "24");
+                AssertRowContains(savedRows, "Role", "Tank");
+            }
+            finally
+            {
+                if (prefabSource != null)
+                    UnityEngine.Object.DestroyImmediate(prefabSource);
+                if (AssetDatabase.IsValidFolder(rootFolder))
+                    AssetDatabase.DeleteAsset(rootFolder);
+                AssetDatabase.Refresh();
+            }
+        }
+
+        [Test]
+        public void EnemyDefinitionAssetCreator_UpdateValidationBlocksMissingPrefabAndInvalidStats()
+        {
+            var prefab = new GameObject("EnemyValidationPrefab");
+            EnemyDefinitionAsset asset = EnemyDefinitionAsset.CreateTransient(
+                "enemy.validation.invalid",
+                "Invalid Enemy",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value,
+                prefab: prefab);
+            try
+            {
+                EnemyAuthoringState edit = AttackGameContentPreviewSelection.FromEnemyAsset(asset);
+                edit.Prefab = null;
+                edit.MaximumHealth = -1f;
+                edit.MoveSpeed = 0f;
+                edit.RewardValue = -1;
+                edit.ContactDamage = float.NaN;
+                edit.DamageTypeId = string.Empty;
+                edit.CollisionRadius = 0f;
+
+                GameContentAuthoringValidationResult validation = EnemyDefinitionAssetCreator.ValidateForUpdate(edit, asset);
+                GameContentCreationResult saved = EnemyDefinitionAssetCreator.UpdateExistingAsset(asset, edit);
+
+                Assert.That(validation.IsValid, Is.False);
+                Assert.That(validation.ErrorCount, Is.GreaterThanOrEqualTo(7));
+                Assert.That(saved.Succeeded, Is.False);
+                StringAssert.Contains("Fix validation errors", saved.Message);
+            }
+            finally
+            {
+                EnemyDefinitionAssetCreator.DestroyTransient(asset);
+                UnityEngine.Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void EnemyProviderV2Preview_MissingOptionalPresentationAssetsStayCalm()
+        {
+            var prefab = new GameObject("EnemyOptionalPresentationPrefab");
+            try
+            {
+                var enemy = new EnemyAuthoringState
+                {
+                    EnemyId = "enemy.preview.optional",
+                    DisplayName = "Optional Presentation",
+                    Prefab = prefab,
+                    MaximumHealth = 8f,
+                    MoveSpeed = 2f
+                };
+
+                IReadOnlyList<DeucarianEditorTimelineEvent> events = EnemyProviderV2View.BuildTimelineEvents(enemy);
+                IReadOnlyList<string> warnings = AttackGameContentPreviewSummaries.BuildEnemyWarnings(enemy);
+
+                Assert.That(events.Count, Is.EqualTo(3));
+                Assert.That(events[0].VisualAssigned, Is.False);
+                Assert.That(events[0].AudioAssigned, Is.False);
+                Assert.That(warnings, Is.Empty);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
         public void FullAttackPreview_BuildsBeamRolesForHitscan()
         {
             var beam = new GameObject("cursor-ray-beam");
@@ -1368,6 +1750,13 @@ namespace Deucarian.Attacks.Tests
             FieldInfo field = typeof(AttackAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, "AttackAuthoringProvider._v2State was not found.");
             return (AttackProviderV2State)field.GetValue(provider);
+        }
+
+        private static EnemyProviderV2State GetEnemyProviderV2State(EnemyAuthoringProvider provider)
+        {
+            FieldInfo field = typeof(EnemyAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "EnemyAuthoringProvider._v2State was not found.");
+            return (EnemyProviderV2State)field.GetValue(provider);
         }
 
         private static GameContentLibraryItem CreateLibraryItem(string key, UnityEngine.Object asset, GameContentLibraryKind kind, string displayName)

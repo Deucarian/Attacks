@@ -341,10 +341,17 @@ namespace Deucarian.Attacks.Editor
 
         public static string PreviewEnemyEvent(EnemyAuthoringState state, EnemyPresentationEventKind eventKind)
         {
+            return PreviewEnemyEvent(state, eventKind, false);
+        }
+
+        public static string PreviewEnemyEvent(EnemyAuthoringState state, EnemyPresentationEventKind eventKind, bool muted)
+        {
             if (state == null) return eventKind + " preview unavailable: authoring state is missing.";
             AudioClip clip = GetEnemyAudio(state, eventKind);
             GameObject vfx = GetEnemyVfx(state, eventKind);
             string visual = vfx == null ? "no VFX assigned" : "VFX " + vfx.name;
+            if (muted)
+                return eventKind + " preview: " + visual + "; audio muted.";
             if (clip == null)
                 return eventKind + " preview: " + visual + "; no audio clip assigned.";
 
@@ -619,7 +626,7 @@ namespace Deucarian.Attacks.Editor
             return state;
         }
 
-        private static EnemyAuthoringState FromEnemyAsset(EnemyDefinitionAsset asset)
+        public static EnemyAuthoringState FromEnemyAsset(EnemyDefinitionAsset asset)
         {
             var state = new EnemyAuthoringState
             {

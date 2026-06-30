@@ -150,19 +150,33 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider
+    internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider
     {
         private readonly EnemyAuthoringState _state = new EnemyAuthoringState();
         private readonly EnemyGameContentPreviewController _preview = new EnemyGameContentPreviewController();
+        private readonly EnemyProviderV2State _v2State = new EnemyProviderV2State();
+        private readonly EnemyProviderV2View _v2View = new EnemyProviderV2View();
 
         public string ProviderId => "com.deucarian.attacks.enemy";
         public string DisplayName => "Enemy";
         public string Description => "Create a root EnemyDefinition with stats and presentation sections.";
         public int SortOrder => 110;
         public bool Enabled => true;
-        public void OnSelected() { }
+        public void OnSelected()
+        {
+            _v2State.ResetProviderSession();
+        }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
-        public void StopPreview() { _preview.Stop(); }
+        public void StopPreview()
+        {
+            _preview.Stop();
+            _v2State.StopPreview();
+        }
+
+        public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context)
+        {
+            _v2View.Draw(context, _state, _preview, _v2State);
+        }
 
         public void Draw(GameContentAuthoringContext context)
         {
@@ -816,6 +830,31 @@ namespace Deucarian.Attacks.Editor
             return new GameContentAuthoringValidationResult(issues);
         }
 
+        public static GameContentAuthoringValidationResult ValidateForUpdate(EnemyAuthoringState state, EnemyDefinitionAsset existingAsset)
+        {
+            var issues = new List<GameContentAuthoringValidationIssue>();
+            if (state == null)
+            {
+                issues.Add(GameContentAuthoringValidationIssue.Error("Enemy", "No enemy edit state is available."));
+                return new GameContentAuthoringValidationResult(issues);
+            }
+
+            EnemyDefinitionAsset preview = BuildRecipe(state, true);
+            try
+            {
+                issues.AddRange(ToSharedIssues(EnemyDefinitionValidator.Validate(preview, EnemyDefinitionValidationOptions.AssetCreation)));
+                if (existingAsset == null)
+                    issues.Add(GameContentAuthoringValidationIssue.Error("Enemy", "No existing enemy asset is selected."));
+                else if (HasDuplicateEnemyIdExcept(state.EnemyId, existingAsset))
+                    issues.Add(GameContentAuthoringValidationIssue.Error("Enemy.Id", "Enemy IDs must be unique. Another enemy already uses this stable ID."));
+                return new GameContentAuthoringValidationResult(issues);
+            }
+            finally
+            {
+                DestroyTransient(preview);
+            }
+        }
+
         public static IReadOnlyList<string> GetPreviewLines(EnemyAuthoringState state)
         {
             return new[]
@@ -867,6 +906,49 @@ namespace Deucarian.Attacks.Editor
             return new GameContentCreationResult(true, "Created enemy definition at " + rootPath, AssetDatabase.LoadAssetAtPath<EnemyDefinitionAsset>(rootPath));
         }
 
+        public static GameContentCreationResult UpdateExistingAsset(EnemyDefinitionAsset root, EnemyAuthoringState state)
+        {
+            if (root == null)
+                return new GameContentCreationResult(false, "No enemy asset selected.", null);
+            if (state == null)
+                return new GameContentCreationResult(false, "No enemy edit state is available.", root);
+
+            GameContentAuthoringValidationResult report = ValidateForUpdate(state, root);
+            if (!report.IsValid)
+                return new GameContentCreationResult(false, "Fix validation errors before saving this enemy.", root);
+
+            string rootPath = AssetDatabase.GetAssetPath(root);
+            if (string.IsNullOrWhiteSpace(rootPath))
+                return new GameContentCreationResult(false, "Selected enemy is not a persisted asset.", root);
+
+            string stem = GetFileStem(state);
+            EnemyStatsDefinitionAsset stats = EnsureSectionAsset(root.Stats, rootPath, stem + "_Stats");
+            EnemyPresentationDefinitionAsset presentation = EnsureSectionAsset(root.Presentation, rootPath, stem + "_Presentation");
+
+            Undo.RegisterCompleteObjectUndo(root, "Save Enemy");
+            Undo.RegisterCompleteObjectUndo(stats, "Save Enemy Stats");
+            Undo.RegisterCompleteObjectUndo(presentation, "Save Enemy Presentation");
+
+            stats.Configure(state.MaximumHealth, state.MoveSpeed, state.RewardValue, state.ContactDamage, state.DamageTypeId, state.CollisionRadius);
+            presentation.Configure(state.Prefab, GetPresentationEvents(state));
+            root.Configure(
+                state.EnemyId,
+                state.DisplayName,
+                state.Icon,
+                state.Role,
+                GameContentAuthoringEditorAssets.SplitCsv(state.TagsCsv),
+                stats,
+                presentation,
+                root.BalancingNotes);
+
+            MarkDirty(stats);
+            MarkDirty(presentation);
+            MarkDirty(root);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            return new GameContentCreationResult(true, "Saved enemy " + root.DisplayName + ".", root);
+        }
+
         public static void DestroyTransient(EnemyDefinitionAsset recipe)
         {
             if (recipe == null || recipe.hideFlags != HideFlags.HideAndDontSave) return;
@@ -900,6 +982,16 @@ namespace Deucarian.Attacks.Editor
             return root;
         }
 
+        private static IReadOnlyList<EnemyPresentationEventRecipe> GetPresentationEvents(EnemyAuthoringState state)
+        {
+            return new[]
+            {
+                new EnemyPresentationEventRecipe(EnemyPresentationEventKind.OnSpawn, state.SpawnAudio, state.SpawnVfxPrefab),
+                new EnemyPresentationEventRecipe(EnemyPresentationEventKind.OnHit, state.HitAudio, state.HitVfxPrefab),
+                new EnemyPresentationEventRecipe(EnemyPresentationEventKind.OnDeath, state.DeathAudio, state.DeathVfxPrefab)
+            };
+        }
+
         private static string GetEnemyFolder(EnemyAuthoringState state)
         {
             string root = GameContentAuthoringEditorPaths.NormalizeAssetFolderPath(state.OutputRoot, DefaultRoot);
@@ -914,6 +1006,27 @@ namespace Deucarian.Attacks.Editor
         private static string GetFileStem(EnemyAuthoringState state)
         {
             return GameContentAuthoringEditorPaths.SanitizePathSegment(state.EnemyId, "NewEnemy");
+        }
+
+        private static bool HasDuplicateEnemyIdExcept(string enemyId, EnemyDefinitionAsset existingAsset)
+        {
+            return GameContentAuthoringEditorAssets.HasDuplicateIdExcept<EnemyDefinitionAsset>(enemyId, existingAsset, asset => asset.Id);
+        }
+
+        private static T EnsureSectionAsset<T>(T section, string rootPath, string name) where T : ScriptableObject
+        {
+            if (section != null)
+                return section;
+
+            T created = ScriptableObject.CreateInstance<T>();
+            GameContentAuthoringEditorAssets.AddSubAsset(created, AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath), name);
+            return created;
+        }
+
+        private static void MarkDirty(UnityEngine.Object asset)
+        {
+            if (asset != null)
+                EditorUtility.SetDirty(asset);
         }
 
         private static List<GameContentAuthoringValidationIssue> ToSharedIssues(ContentAuthoringValidationReport report)
