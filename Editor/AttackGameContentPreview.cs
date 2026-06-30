@@ -264,8 +264,11 @@ namespace Deucarian.Attacks.Editor
                 PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(state),
                 ProjectilePrefab = state.ProjectilePrefab,
                 BeamVfxPrefab = state.BeamVfxPrefab,
+                CastVfxPrefab = state.CastVfxPrefab,
                 FireVfxPrefab = state.FireVfxPrefab,
                 ImpactVfxPrefab = state.ImpactVfxPresentationPrefab ?? state.ImpactVfxPrefab,
+                TickVfxPrefab = state.TickVfxPrefab,
+                ExpireVfxPrefab = state.ExpireVfxPrefab,
                 Mode = GetActionPreviewMode(state.DeliveryMode),
                 IncludeStatusEffect = state.IncludeStatusEffect,
                 Playing = playing,
@@ -298,6 +301,38 @@ namespace Deucarian.Attacks.Editor
             string audioMessage;
             AttackEditorPreviewAudio.TryPlay(clip, out audioMessage);
             return eventKind + " preview: " + visual + "; " + audioMessage;
+        }
+
+        public static string PreviewTimelineAudio(AttackAuthoringState state, GameContentAuthoringActionPreview preview, bool muted, ref int lastPhase)
+        {
+            if (state == null || preview == null || !preview.Playing)
+            {
+                lastPhase = -1;
+                return string.Empty;
+            }
+
+            int phase = GetTimelineAudioPhase(preview.GetNormalizedTime(EditorApplication.timeSinceStartup), state.IncludeStatusEffect);
+            if (!ShouldPreviewTimelineAudio(muted, preview.Playing, lastPhase, phase))
+            {
+                if (phase < 0)
+                    lastPhase = -1;
+                return string.Empty;
+            }
+
+            lastPhase = phase;
+            AttackPresentationEventKind eventKind = GetTimelineAudioEvent(phase);
+            AudioClip clip = GetAttackAudio(state, eventKind);
+            if (clip == null)
+                return string.Empty;
+
+            string audioMessage;
+            AttackEditorPreviewAudio.TryPlay(clip, out audioMessage);
+            return "Timeline " + eventKind + ": " + audioMessage;
+        }
+
+        public static bool ShouldPreviewTimelineAudio(bool muted, bool playing, int lastPhase, int phase)
+        {
+            return !muted && playing && phase >= 0 && phase != lastPhase;
         }
 
         public static string PreviewEnemyEvent(EnemyAuthoringState state, EnemyPresentationEventKind eventKind)
@@ -346,6 +381,36 @@ namespace Deucarian.Attacks.Editor
                     return GameContentAuthoringActionPreviewMode.Aura;
                 default:
                     return GameContentAuthoringActionPreviewMode.Static;
+            }
+        }
+
+        private static int GetTimelineAudioPhase(float normalizedTime, bool includeStatus)
+        {
+            if (normalizedTime <= 0.05f) return 0;
+            if (normalizedTime >= 0.18f && normalizedTime <= 0.24f) return 1;
+            if (normalizedTime >= 0.72f && normalizedTime <= 0.79f) return 2;
+            if (!includeStatus) return -1;
+            if (normalizedTime >= 0.88f && normalizedTime <= 0.93f) return 3;
+            if (normalizedTime >= 0.96f) return 4;
+            return -1;
+        }
+
+        private static AttackPresentationEventKind GetTimelineAudioEvent(int phase)
+        {
+            switch (phase)
+            {
+                case 0:
+                    return AttackPresentationEventKind.OnCast;
+                case 1:
+                    return AttackPresentationEventKind.OnFire;
+                case 2:
+                    return AttackPresentationEventKind.OnImpact;
+                case 3:
+                    return AttackPresentationEventKind.OnTick;
+                case 4:
+                    return AttackPresentationEventKind.OnExpire;
+                default:
+                    return AttackPresentationEventKind.OnImpact;
             }
         }
 

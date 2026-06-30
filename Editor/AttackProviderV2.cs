@@ -22,8 +22,12 @@ namespace Deucarian.Attacks.Editor
         public bool PreviewLoop = true;
         public float PreviewSpeed = 1f;
         public bool PreviewPlaying = true;
+        public GameContentAuthoringActionPreviewRenderMode PreviewRenderMode = GameContentAuthoringActionPreviewRenderMode.Game;
         public double PreviewStartTime;
         public float PausedNormalizedTime = 0.5f;
+        public int PreviewSourceContextIndex;
+        public int PreviewTargetContextIndex;
+        public int LastPreviewAudioPhase = -1;
         public string ActivePreviewKey = string.Empty;
         public string PreviewStatus = "Preview idle";
 
@@ -32,6 +36,7 @@ namespace Deucarian.Attacks.Editor
             PreviewPlaying = false;
             PreviewStartTime = 0d;
             PausedNormalizedTime = 0.5f;
+            LastPreviewAudioPhase = -1;
             PreviewStatus = "Preview stopped";
         }
 
@@ -46,6 +51,9 @@ namespace Deucarian.Attacks.Editor
             PreviewPlaying = true;
             PreviewStartTime = EditorApplication.timeSinceStartup;
             PausedNormalizedTime = 0f;
+            PreviewSourceContextIndex = 0;
+            PreviewTargetContextIndex = 0;
+            LastPreviewAudioPhase = -1;
             PreviewStatus = "Previewing";
         }
     }
@@ -643,6 +651,13 @@ namespace Deucarian.Attacks.Editor
                 return;
             }
 
+            IReadOnlyList<AttackGameContentPreviewContextOption> sourceOptions = AttackGameContentPreviewContext.BuildSourceOptions(state.Creating ? null : context.SelectedItem);
+            IReadOnlyList<AttackGameContentPreviewContextOption> targetOptions = AttackGameContentPreviewContext.BuildTargetOptions(state.Creating ? null : context.SelectedItem, context.AllAuthoredItems);
+            state.PreviewSourceContextIndex = AttackGameContentPreviewContext.ClampIndex(state.PreviewSourceContextIndex, sourceOptions);
+            state.PreviewTargetContextIndex = AttackGameContentPreviewContext.ClampIndex(state.PreviewTargetContextIndex, targetOptions);
+            AttackGameContentPreviewContextOption sourceOption = sourceOptions[state.PreviewSourceContextIndex];
+            AttackGameContentPreviewContextOption targetOption = targetOptions[state.PreviewTargetContextIndex];
+
             GameContentAuthoringActionPreview actionPreview = AttackGameContentPreviewActions.BuildActionPreview(
                 source,
                 state.PreviewPlaying,
@@ -653,6 +668,11 @@ namespace Deucarian.Attacks.Editor
                 actionPreview.Speed = state.PreviewSpeed;
                 actionPreview.StaticNormalizedTime = state.PausedNormalizedTime;
                 actionPreview.Muted = state.PreviewMuted;
+                actionPreview.RenderMode = state.PreviewRenderMode;
+                actionPreview.SourcePrefab = sourceOption == null ? null : sourceOption.Prefab;
+                actionPreview.TargetPrefab = targetOption == null ? null : targetOption.Prefab;
+                actionPreview.SourceContextLabel = sourceOption == null ? string.Empty : sourceOption.Label;
+                actionPreview.TargetContextLabel = targetOption == null ? string.Empty : targetOption.Label;
             }
 
             using (new EditorGUILayout.HorizontalScope())
@@ -663,6 +683,7 @@ namespace Deucarian.Attacks.Editor
             }
 
             DrawPreviewControls(context, source, state, actionPreview);
+            DrawPreviewContextControls(state, sourceOptions, targetOptions);
             context.Preview.DrawObjectPreview(
                 AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(source),
                 "Attack View",
@@ -682,8 +703,16 @@ namespace Deucarian.Attacks.Editor
             DeucarianEditorStatusChipRow.Draw(
                 new DeucarianEditorStatusChip(HasAnyVisual(source) ? "Visual assets" : "No VFX", HasAnyVisual(source) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled),
                 new DeucarianEditorStatusChip(state.PreviewMuted ? "Muted" : HasAnyAudio(source) ? "Audio on" : "No audio", state.PreviewMuted || !HasAnyAudio(source) ? DeucarianEditorStatus.Disabled : DeucarianEditorStatus.Success),
+                new DeucarianEditorStatusChip(state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? "Game" : "Debug", state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
                 new DeucarianEditorStatusChip(state.PreviewLoop ? "Loop" : "Once", state.PreviewLoop ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
                 new DeucarianEditorStatusChip(FormatFloat(state.PreviewSpeed) + "x", DeucarianEditorStatus.Info));
+
+            string timelineAudioStatus = AttackGameContentPreviewActions.PreviewTimelineAudio(source, actionPreview, state.PreviewMuted, ref state.LastPreviewAudioPhase);
+            if (!string.IsNullOrWhiteSpace(timelineAudioStatus))
+            {
+                state.PreviewStatus = timelineAudioStatus;
+                context.Preview.SetStatus(state.PreviewStatus);
+            }
 
             if (!string.IsNullOrWhiteSpace(state.PreviewStatus))
                 EditorGUILayout.LabelField(state.PreviewStatus, DeucarianEditorStyles.MutedLabel);
@@ -710,6 +739,7 @@ namespace Deucarian.Attacks.Editor
                     {
                         state.PausedNormalizedTime = actionPreview == null ? 0.5f : actionPreview.GetNormalizedTime(EditorApplication.timeSinceStartup);
                         state.PreviewPlaying = false;
+                        state.LastPreviewAudioPhase = -1;
                         state.PreviewStatus = "Preview paused";
                     }
                     else
@@ -717,6 +747,7 @@ namespace Deucarian.Attacks.Editor
                         float duration = actionPreview == null ? 2.4f : actionPreview.DurationSeconds;
                         state.PreviewStartTime = EditorApplication.timeSinceStartup - (state.PausedNormalizedTime * duration / Mathf.Max(0.01f, state.PreviewSpeed));
                         state.PreviewPlaying = true;
+                        state.LastPreviewAudioPhase = -1;
                         state.PreviewStatus = "Preview playing";
                     }
                 }
@@ -726,6 +757,7 @@ namespace Deucarian.Attacks.Editor
                     AttackEditorPreviewAudio.StopAll();
                     state.PreviewPlaying = false;
                     state.PausedNormalizedTime = 0f;
+                    state.LastPreviewAudioPhase = -1;
                     state.PreviewStatus = "Preview stopped";
                 }
 
@@ -737,6 +769,7 @@ namespace Deucarian.Attacks.Editor
                     state.PreviewMuted = !state.PreviewMuted;
                     if (state.PreviewMuted)
                         AttackEditorPreviewAudio.StopAll();
+                    state.LastPreviewAudioPhase = -1;
                 }
             }
 
@@ -746,13 +779,42 @@ namespace Deucarian.Attacks.Editor
                 int selectedSpeed = state.PreviewSpeed < 0.75f ? 0 : state.PreviewSpeed > 1.5f ? 2 : 1;
                 int nextSpeed = DeucarianEditorSegmentedControl.Draw(selectedSpeed, speeds, GUILayout.ExpandWidth(true));
                 state.PreviewSpeed = nextSpeed == 0 ? 0.5f : nextSpeed == 2 ? 2f : 1f;
+                string[] modes = { "Game", "Debug" };
+                int selectedMode = state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Debug ? 1 : 0;
+                int nextMode = DeucarianEditorSegmentedControl.Draw(selectedMode, modes, GUILayout.Width(132f));
+                state.PreviewRenderMode = nextMode == 1 ? GameContentAuthoringActionPreviewRenderMode.Debug : GameContentAuthoringActionPreviewRenderMode.Game;
                 if (DeucarianEditorMiniToolbar.Button("Full", true, GUILayout.Width(48f), GUILayout.Height(22f)))
                 {
                     state.PreviewPlaying = true;
                     state.PreviewStartTime = EditorApplication.timeSinceStartup;
+                    state.LastPreviewAudioPhase = -1;
                     state.PreviewStatus = AttackGameContentPreviewActions.PreviewFullAttack(source, state.PreviewMuted);
                     context.Preview.SetStatus(state.PreviewStatus);
                 }
+            }
+        }
+
+        private static void DrawPreviewContextControls(
+            AttackProviderV2State state,
+            IReadOnlyList<AttackGameContentPreviewContextOption> sourceOptions,
+            IReadOnlyList<AttackGameContentPreviewContextOption> targetOptions)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField("Source", GUILayout.Width(48f));
+                state.PreviewSourceContextIndex = EditorGUILayout.Popup(
+                    state.PreviewSourceContextIndex,
+                    AttackGameContentPreviewContext.BuildLabels(sourceOptions),
+                    GUILayout.ExpandWidth(true));
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField("Target", GUILayout.Width(48f));
+                state.PreviewTargetContextIndex = EditorGUILayout.Popup(
+                    state.PreviewTargetContextIndex,
+                    AttackGameContentPreviewContext.BuildLabels(targetOptions),
+                    GUILayout.ExpandWidth(true));
             }
         }
 

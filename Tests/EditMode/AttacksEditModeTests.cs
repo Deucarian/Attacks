@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Deucarian.Attacks.Editor;
 using Deucarian.Attacks.Authoring;
@@ -597,9 +598,13 @@ namespace Deucarian.Attacks.Tests
                 Assert.That(preview.PrimaryAsset, Is.SameAs(projectile));
                 Assert.That(preview.ProjectilePrefab, Is.SameAs(projectile));
                 Assert.That(preview.ImpactVfxPrefab, Is.SameAs(impact));
+                Assert.That(preview.RenderMode, Is.EqualTo(GameContentAuthoringActionPreviewRenderMode.Game));
                 Assert.That(preview.Playing, Is.True);
                 Assert.That(preview.DeliveryTypeLabel, Is.EqualTo("Projectile"));
                 AssertPreviewRoles(preview, "Source", "Projectile", "Target");
+                Assert.That(GameContentAuthoringObjectPreviewUtility.RequestsRoleLabels(preview), Is.False);
+                preview.RenderMode = GameContentAuthoringActionPreviewRenderMode.Debug;
+                Assert.That(GameContentAuthoringObjectPreviewUtility.RequestsRoleLabels(preview), Is.True);
                 Assert.That(PreviewRole(preview, "Projectile").Label, Is.EqualTo("ProjectilePreviewPrefab"));
                 Assert.That(GameContentAuthoringObjectPreviewUtility.BuildRoleLabelContent(PreviewRole(preview, "Projectile")).text, Is.EqualTo("Projectile: ProjectilePreviewPrefab"));
                 Assert.That(PreviewRole(preview, "Projectile").Asset, Is.SameAs(projectile));
@@ -631,6 +636,8 @@ namespace Deucarian.Attacks.Tests
 
                 Assert.That(preview.Mode, Is.EqualTo(GameContentAuthoringActionPreviewMode.Hitscan));
                 Assert.That(preview.DeliveryTypeLabel, Is.EqualTo("Beam"));
+                Assert.That(preview.BeamVfxPrefab, Is.SameAs(beam));
+                Assert.That(preview.ImpactVfxPrefab, Is.SameAs(impact));
                 AssertPreviewRoles(preview, "Source", "Beam", "Impact");
                 Assert.That(PreviewRole(preview, "Beam").Label, Is.EqualTo("cursor-ray-beam"));
                 Assert.That(GameContentAuthoringObjectPreviewUtility.BuildRoleLabelContent(PreviewRole(preview, "Beam")).text, Is.EqualTo("Beam: cursor-ray-beam"));
@@ -707,6 +714,86 @@ namespace Deucarian.Attacks.Tests
                 UnityEngine.Object.DestroyImmediate(areaImpact);
                 UnityEngine.Object.DestroyImmediate(statusTick);
             }
+        }
+
+        [Test]
+        public void FullAttackPreview_CarriesSporePopProjectilePrefabIntoGamePreview()
+        {
+            var projectile = new GameObject("spore-pop-projectile");
+            try
+            {
+                var attack = new AttackAuthoringState
+                {
+                    DisplayName = "Spore Pop",
+                    DeliveryMode = AttackRecipeDeliveryMode.Projectile,
+                    ProjectilePrefab = projectile
+                };
+
+                GameContentAuthoringActionPreview preview = AttackGameContentPreviewActions.BuildActionPreview(attack, false, 0d);
+
+                Assert.That(preview.RenderMode, Is.EqualTo(GameContentAuthoringActionPreviewRenderMode.Game));
+                Assert.That(preview.ProjectilePrefab, Is.SameAs(projectile));
+                Assert.That(preview.PrimaryAsset, Is.SameAs(projectile));
+                Assert.That(GameContentAuthoringObjectPreviewUtility.RequestsRoleLabels(preview), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectile);
+            }
+        }
+
+        [Test]
+        public void PreviewContext_ResolvesWeaponSourceAndContentSetEnemyTarget()
+        {
+            var attackAsset = ScriptableObject.CreateInstance<AttackDefinitionAsset>();
+            var weaponAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
+            var enemyAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
+            var contentSetAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
+            var weaponPrefab = new GameObject("Moss Cursor Tower");
+            var enemyPrefab = new GameObject("Moss Dust Mite");
+            try
+            {
+                weaponAsset.Presentation = ScriptableObject.CreateInstance<PreviewContextPresentation>();
+                enemyAsset.Presentation = ScriptableObject.CreateInstance<PreviewContextPresentation>();
+                weaponAsset.Presentation.Prefab = weaponPrefab;
+                enemyAsset.Presentation.Prefab = enemyPrefab;
+
+                GameContentLibraryItem attack = CreateLibraryItem("attack.cursor", attackAsset, GameContentLibraryKind.Attack, "Cursor Ray");
+                GameContentLibraryItem weapon = CreateLibraryItem("weapon.cursor", weaponAsset, GameContentLibraryKind.Weapon, "Cursor Tower");
+                GameContentLibraryItem enemy = CreateLibraryItem("enemy.dust-mite", enemyAsset, GameContentLibraryKind.Enemy, "Moss Dust Mite");
+                GameContentLibraryItem contentSet = CreateLibraryItem("set.moss", contentSetAsset, GameContentLibraryKind.ContentSet, "Moss Content Set");
+                AddReverseReference(attack, weapon);
+                AddDirectReference(contentSet, weapon);
+                AddDirectReference(contentSet, enemy);
+
+                IReadOnlyList<AttackGameContentPreviewContextOption> sources = AttackGameContentPreviewContext.BuildSourceOptions(attack);
+                IReadOnlyList<AttackGameContentPreviewContextOption> targets = AttackGameContentPreviewContext.BuildTargetOptions(attack, new[] { attack, weapon, enemy, contentSet });
+
+                Assert.That(sources[0].Prefab, Is.SameAs(weaponPrefab));
+                Assert.That(sources[0].Item.Kind, Is.EqualTo(GameContentLibraryKind.Weapon));
+                Assert.That(targets[0].Prefab, Is.SameAs(enemyPrefab));
+                Assert.That(targets[0].Item.Kind, Is.EqualTo(GameContentLibraryKind.Enemy));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(attackAsset);
+                UnityEngine.Object.DestroyImmediate(weaponAsset.Presentation);
+                UnityEngine.Object.DestroyImmediate(enemyAsset.Presentation);
+                UnityEngine.Object.DestroyImmediate(weaponAsset);
+                UnityEngine.Object.DestroyImmediate(enemyAsset);
+                UnityEngine.Object.DestroyImmediate(contentSetAsset);
+                UnityEngine.Object.DestroyImmediate(weaponPrefab);
+                UnityEngine.Object.DestroyImmediate(enemyPrefab);
+            }
+        }
+
+        [Test]
+        public void PreviewTimelineAudio_DoesNotRequestPlaybackWhenMuted()
+        {
+            Assert.That(AttackGameContentPreviewActions.ShouldPreviewTimelineAudio(true, true, -1, 0), Is.False);
+            Assert.That(AttackGameContentPreviewActions.ShouldPreviewTimelineAudio(false, true, -1, 0), Is.True);
+            Assert.That(AttackGameContentPreviewActions.ShouldPreviewTimelineAudio(false, true, 0, 0), Is.False);
+            Assert.That(AttackGameContentPreviewActions.ShouldPreviewTimelineAudio(false, false, -1, 0), Is.False);
         }
 
         [Test]
@@ -989,6 +1076,62 @@ namespace Deucarian.Attacks.Tests
             GameContentAuthoringActionPreviewRole match = preview.Roles.FirstOrDefault(candidate => candidate != null && string.Equals(candidate.Role, role, StringComparison.Ordinal));
             Assert.That(match, Is.Not.Null, "Expected preview role " + role + ".");
             return match;
+        }
+
+        private static GameContentLibraryItem CreateLibraryItem(string key, UnityEngine.Object asset, GameContentLibraryKind kind, string displayName)
+        {
+            ConstructorInfo constructor = typeof(GameContentLibraryItem).GetConstructor(
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                null,
+                new[]
+                {
+                    typeof(string),
+                    typeof(UnityEngine.Object),
+                    typeof(GameContentLibraryKind),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string)
+                },
+                null);
+            Assert.That(constructor, Is.Not.Null, "GameContentLibraryItem constructor was not found.");
+            return (GameContentLibraryItem)constructor.Invoke(new object[]
+            {
+                key,
+                asset,
+                kind,
+                kind.ToString(),
+                "Assets/" + key + ".asset",
+                key,
+                displayName
+            });
+        }
+
+        private static void AddDirectReference(GameContentLibraryItem source, GameContentLibraryItem target)
+        {
+            InvokeReferenceMethod(source, "AddDirectReference", target);
+        }
+
+        private static void AddReverseReference(GameContentLibraryItem source, GameContentLibraryItem target)
+        {
+            InvokeReferenceMethod(source, "AddReverseReference", target);
+        }
+
+        private static void InvokeReferenceMethod(GameContentLibraryItem source, string methodName, GameContentLibraryItem target)
+        {
+            MethodInfo method = typeof(GameContentLibraryItem).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, methodName + " was not found.");
+            method.Invoke(source, new object[] { new GameContentLibraryReference(target, "PreviewContext.Test") });
+        }
+
+        private sealed class PreviewContextAsset : ScriptableObject
+        {
+            public PreviewContextPresentation Presentation;
+        }
+
+        private sealed class PreviewContextPresentation : ScriptableObject
+        {
+            public GameObject Prefab;
         }
 
         private static AttackRuntime Runtime(AttackDefinition definition) => new AttackRuntime(Catalog(), new[] { definition });
