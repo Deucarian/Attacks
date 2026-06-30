@@ -426,6 +426,31 @@ namespace Deucarian.Attacks.Editor
             return new GameContentAuthoringValidationResult(issues);
         }
 
+        public static GameContentAuthoringValidationResult ValidateForUpdate(AttackAuthoringState state, AttackDefinitionAsset existingAsset)
+        {
+            var issues = new List<GameContentAuthoringValidationIssue>();
+            if (state == null)
+            {
+                issues.Add(GameContentAuthoringValidationIssue.Error("Attack", "No attack edit state is available."));
+                return new GameContentAuthoringValidationResult(issues);
+            }
+
+            AttackDefinitionAsset preview = BuildRecipe(state, true);
+            try
+            {
+                AddAttackIssues(issues, AttackRecipeValidator.Validate(preview, AttackRecipeValidationOptions.RuntimeFriendly));
+                if (existingAsset == null)
+                    issues.Add(GameContentAuthoringValidationIssue.Error("Attack", "No existing attack asset is selected."));
+                else if (HasDuplicateAttackIdExcept(state.AttackId, existingAsset))
+                    issues.Add(GameContentAuthoringValidationIssue.Error("Attack.Id", "Attack IDs must be unique. Another attack already uses this stable ID."));
+                return new GameContentAuthoringValidationResult(issues);
+            }
+            finally
+            {
+                DestroyTransient(preview);
+            }
+        }
+
         public static IReadOnlyList<string> GetPreviewLines(AttackAuthoringState state)
         {
             string folder = GetAttackFolder(state);
@@ -491,6 +516,64 @@ namespace Deucarian.Attacks.Editor
             return new GameContentCreationResult(true, "Created attack recipe at " + rootPath, AssetDatabase.LoadAssetAtPath<AttackDefinitionAsset>(rootPath));
         }
 
+        public static GameContentCreationResult UpdateExistingAsset(AttackDefinitionAsset root, AttackAuthoringState state)
+        {
+            if (root == null)
+                return new GameContentCreationResult(false, "No attack asset selected.", null);
+            if (state == null)
+                return new GameContentCreationResult(false, "No attack edit state is available.", root);
+
+            GameContentAuthoringValidationResult report = ValidateForUpdate(state, root);
+            if (!report.IsValid)
+                return new GameContentCreationResult(false, "Fix validation errors before saving this attack.", root);
+
+            string rootPath = AssetDatabase.GetAssetPath(root);
+            if (string.IsNullOrWhiteSpace(rootPath))
+                return new GameContentCreationResult(false, "Selected attack is not a persisted asset.", root);
+
+            string stem = GetFileStem(state);
+            AttackMechanicsDefinitionAsset mechanics = EnsureSectionAsset(root.Mechanics, rootPath, stem + "_Mechanics");
+            AttackTargetingDefinitionAsset targeting = EnsureSectionAsset(root.Targeting, rootPath, stem + "_Targeting");
+            AttackDeliveryDefinitionAsset delivery = EnsureSectionAsset(root.Delivery, rootPath, stem + "_Delivery");
+            AttackStatusEffectsDefinitionAsset statuses = EnsureSectionAsset(root.StatusEffects, rootPath, stem + "_StatusEffects");
+            AttackPresentationDefinitionAsset presentation = EnsureSectionAsset(root.Presentation, rootPath, stem + "_Presentation");
+
+            Undo.RegisterCompleteObjectUndo(root, "Save Attack");
+            Undo.RegisterCompleteObjectUndo(mechanics, "Save Attack Mechanics");
+            Undo.RegisterCompleteObjectUndo(targeting, "Save Attack Targeting");
+            Undo.RegisterCompleteObjectUndo(delivery, "Save Attack Delivery");
+            Undo.RegisterCompleteObjectUndo(statuses, "Save Attack Status Effects");
+            Undo.RegisterCompleteObjectUndo(presentation, "Save Attack Presentation");
+
+            mechanics.Configure(state.CooldownTicks, state.Range, state.DamageAmount, state.DamageTypeId);
+            targeting.Configure(state.TargetingMode);
+            ConfigureDelivery(delivery, state);
+            statuses.Configure(GetStatuses(state));
+            presentation.Configure(GetPresentationEvents(state));
+            root.Configure(
+                state.AttackId,
+                state.DisplayName,
+                state.Icon,
+                SplitCsv(state.TagsCsv),
+                mechanics,
+                targeting,
+                delivery,
+                statuses,
+                presentation,
+                root.UpgradeHookId,
+                root.BalancingNotes);
+
+            MarkDirty(mechanics);
+            MarkDirty(targeting);
+            MarkDirty(delivery);
+            MarkDirty(statuses);
+            MarkDirty(presentation);
+            MarkDirty(root);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            return new GameContentCreationResult(true, "Saved attack " + root.DisplayName + ".", root);
+        }
+
         public static void DestroyTransient(AttackDefinitionAsset recipe)
         {
             if (recipe == null || recipe.hideFlags != HideFlags.HideAndDontSave) return;
@@ -527,6 +610,24 @@ namespace Deucarian.Attacks.Editor
 
             mechanics.Configure(state.CooldownTicks, state.Range, state.DamageAmount, state.DamageTypeId);
             targeting.Configure(state.TargetingMode);
+            ConfigureDelivery(delivery, state);
+            statuses.Configure(GetStatuses(state));
+            presentation.Configure(GetPresentationEvents(state));
+            root.Configure(
+                state.AttackId,
+                state.DisplayName,
+                state.Icon,
+                SplitCsv(state.TagsCsv),
+                mechanics,
+                targeting,
+                delivery,
+                statuses,
+                presentation);
+            return root;
+        }
+
+        private static void ConfigureDelivery(AttackDeliveryDefinitionAsset delivery, AttackAuthoringState state)
+        {
             if (state.DeliveryMode == AttackRecipeDeliveryMode.Projectile)
             {
                 delivery.ConfigureProjectile(
@@ -552,20 +653,6 @@ namespace Deucarian.Attacks.Editor
             {
                 delivery.ConfigureAura(state.Radius, state.TickIntervalSeconds);
             }
-
-            statuses.Configure(GetStatuses(state));
-            presentation.Configure(GetPresentationEvents(state));
-            root.Configure(
-                state.AttackId,
-                state.DisplayName,
-                state.Icon,
-                SplitCsv(state.TagsCsv),
-                mechanics,
-                targeting,
-                delivery,
-                statuses,
-                presentation);
-            return root;
         }
 
         private static IReadOnlyList<AttackStatusEffectRecipe> GetStatuses(AttackAuthoringState state)
@@ -619,6 +706,27 @@ namespace Deucarian.Attacks.Editor
         private static bool HasDuplicateAttackId(string attackId)
         {
             return GameContentAuthoringEditorAssets.HasDuplicateId<AttackDefinitionAsset>(attackId, asset => asset.Id);
+        }
+
+        private static bool HasDuplicateAttackIdExcept(string attackId, AttackDefinitionAsset existingAsset)
+        {
+            return GameContentAuthoringEditorAssets.HasDuplicateIdExcept<AttackDefinitionAsset>(attackId, existingAsset, asset => asset.Id);
+        }
+
+        private static T EnsureSectionAsset<T>(T section, string rootPath, string name) where T : ScriptableObject
+        {
+            if (section != null)
+                return section;
+
+            T created = ScriptableObject.CreateInstance<T>();
+            AddSubAsset(created, AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath), name);
+            return created;
+        }
+
+        private static void MarkDirty(UnityEngine.Object asset)
+        {
+            if (asset != null)
+                EditorUtility.SetDirty(asset);
         }
 
         private static string[] SplitCsv(string csv)

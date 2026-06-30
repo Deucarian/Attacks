@@ -30,6 +30,9 @@ namespace Deucarian.Attacks.Editor
         public int LastPreviewAudioPhase = -1;
         public string ActivePreviewKey = string.Empty;
         public string PreviewStatus = "Preview idle";
+        public AttackAuthoringState EditingState;
+        public GameContentAuthoringObjectEditorContext EditingContext;
+        public GameContentCreationResult LastEditResult;
 
         public void StopPreview()
         {
@@ -55,6 +58,13 @@ namespace Deucarian.Attacks.Editor
             PreviewTargetContextIndex = 0;
             LastPreviewAudioPhase = -1;
             PreviewStatus = "Previewing";
+        }
+
+        public void ClearEditingState()
+        {
+            EditingState = null;
+            EditingContext = null;
+            LastEditResult = null;
         }
     }
 
@@ -92,32 +102,14 @@ namespace Deucarian.Attacks.Editor
 
             IReadOnlyList<AttackProviderV2ListItem> items = AttackProviderV2ListItem.Build(context.AuthoredItems);
             EnsureDefaultMode(context, state, items);
+            EnsureEditingState(context, state);
             TrackPreviewSource(context, state, previewController);
 
-            if (context.Layout.Wide)
-            {
-                float totalWidth = Mathf.Max(760f, context.Window.position.width - context.Layout.SidebarWidth - DeucarianEditorSpacing.ExtraLarge * 2f);
-                DeucarianEditorSplitPaneWidths widths = DeucarianEditorSplitPane.Calculate(totalWidth, 286f, 380f, 370f);
-                using (new EditorGUILayout.HorizontalScope(GUILayout.ExpandHeight(true)))
-                {
-                    DrawAttackList(context, state, items, GUILayout.Width(widths.Left), GUILayout.ExpandHeight(true));
-                    GUILayout.Space(DeucarianEditorSpacing.Small);
-                    DrawDetailOrWizard(context, draft, state, GUILayout.Width(widths.Center), GUILayout.ExpandHeight(true));
-                    GUILayout.Space(DeucarianEditorSpacing.Small);
-                    DrawPreviewLab(context, draft, state, GUILayout.Width(widths.Right), GUILayout.ExpandHeight(true));
-                }
-
-                return;
-            }
-
-            using (new EditorGUILayout.VerticalScope(GUILayout.ExpandHeight(true)))
-            {
-                DrawAttackList(context, state, items, GUILayout.MinHeight(170f), GUILayout.MaxHeight(240f), GUILayout.ExpandWidth(true));
-                GUILayout.Space(DeucarianEditorSpacing.Small);
-                DrawDetailOrWizard(context, draft, state, GUILayout.MinHeight(280f), GUILayout.ExpandHeight(true));
-                GUILayout.Space(DeucarianEditorSpacing.Small);
-                DrawPreviewLab(context, draft, state, GUILayout.Height(context.Layout.StackedPreviewHeight));
-            }
+            GameContentAuthoringWorkbench.Draw(
+                context,
+                () => DrawAttackList(context, state, items),
+                () => DrawDetailOrWizard(context, draft, state),
+                () => DrawPreviewLab(context, draft, state));
         }
 
         private static void EnsureDefaultMode(GameContentAuthoringSurfaceContext context, AttackProviderV2State state, IReadOnlyList<AttackProviderV2ListItem> items)
@@ -125,6 +117,7 @@ namespace Deucarian.Attacks.Editor
             if (items.Count == 0)
             {
                 state.Creating = true;
+                state.ClearEditingState();
                 return;
             }
 
@@ -133,6 +126,33 @@ namespace Deucarian.Attacks.Editor
                 context.SelectItem(items[0].Source);
                 context.RequestRepaint();
             }
+        }
+
+        private static void EnsureEditingState(GameContentAuthoringSurfaceContext context, AttackProviderV2State state)
+        {
+            if (context == null || state == null)
+                return;
+
+            if (state.Creating || context.SelectedItem == null)
+            {
+                state.ClearEditingState();
+                return;
+            }
+
+            AttackDefinitionAsset selected = context.SelectedItem.Asset as AttackDefinitionAsset;
+            if (selected == null)
+            {
+                state.ClearEditingState();
+                return;
+            }
+
+            if (state.EditingContext != null && string.Equals(state.EditingContext.Key, context.SelectedItem.Key, StringComparison.Ordinal) && state.EditingState != null)
+                return;
+
+            state.EditingState = AttackGameContentPreviewSelection.FromAttackAsset(selected);
+            string fingerprint = BuildStateFingerprint(state.EditingState);
+            state.EditingContext = new GameContentAuthoringObjectEditorContext(context.SelectedItem, fingerprint);
+            state.LastEditResult = null;
         }
 
         private static void TrackPreviewSource(GameContentAuthoringSurfaceContext context, AttackProviderV2State state, AttackGameContentPreviewController previewController)
@@ -148,12 +168,8 @@ namespace Deucarian.Attacks.Editor
         private static void DrawAttackList(
             GameContentAuthoringSurfaceContext context,
             AttackProviderV2State state,
-            IReadOnlyList<AttackProviderV2ListItem> items,
-            params GUILayoutOption[] options)
+            IReadOnlyList<AttackProviderV2ListItem> items)
         {
-            Rect rect = EditorGUILayout.BeginVertical(GUIStyle.none, options);
-            DeucarianEditorVisualShell.DrawInsetSurface(rect, DeucarianEditorTheme.GlassPanelSoft, DeucarianEditorTheme.BorderSubtle, DeucarianEditorSpacing.CardRadius);
-
             using (new EditorGUILayout.HorizontalScope())
             {
                 EditorGUILayout.LabelField("Attacks", DeucarianEditorStyles.SectionTitle);
@@ -168,6 +184,7 @@ namespace Deucarian.Attacks.Editor
                 if (DeucarianEditorButtons.Secondary("Create New", true, GUILayout.Height(24f)))
                 {
                     state.Creating = true;
+                    state.ClearEditingState();
                     state.DetailScroll = Vector2.zero;
                     context.ClearSelection();
                     context.RequestRepaint();
@@ -190,7 +207,6 @@ namespace Deucarian.Attacks.Editor
             if (shown == 0)
                 EditorGUILayout.LabelField(items.Count == 0 ? "No authored attacks found." : "No attacks match the current search.", DeucarianEditorStyles.MutedLabel);
             EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
         }
 
         private static void DrawAttackCard(GameContentAuthoringSurfaceContext context, AttackProviderV2State state, AttackProviderV2ListItem item)
@@ -205,7 +221,7 @@ namespace Deucarian.Attacks.Editor
                 new DeucarianEditorStatusChip(item.HasAudio ? "Audio" : "Mute", item.HasAudio ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled, item.HasAudio ? "Audio presentation assigned" : "No audio presentation assigned")
             };
 
-            DeucarianEditorCompactObjectCard.Draw(
+            bool clicked = DeucarianEditorCompactObjectCard.Draw(
                 item.DisplayName,
                 item.StableId,
                 selected,
@@ -214,15 +230,17 @@ namespace Deucarian.Attacks.Editor
                 {
                     if (DeucarianEditorMiniToolbar.PingButton(item.Source.Asset))
                         GUI.FocusControl(null);
-                    if (DeucarianEditorMiniToolbar.Button(selected ? "Selected" : "Select", item.Source.Asset != null, GUILayout.Width(62f), GUILayout.Height(22f)))
-                    {
-                        state.Creating = false;
-                        state.DetailScroll = Vector2.zero;
-                        context.SelectItem(item.Source);
-                    }
                 },
                 null,
                 GUILayout.ExpandWidth(true));
+
+            if (clicked && item.Source != null)
+            {
+                state.Creating = false;
+                state.DetailScroll = Vector2.zero;
+                context.SelectItem(item.Source);
+                Event.current.Use();
+            }
         }
 
         private static string GetCompactTypeLabel(string typeLabel)
@@ -232,10 +250,8 @@ namespace Deucarian.Attacks.Editor
             return typeLabel ?? "Attack";
         }
 
-        private static void DrawDetailOrWizard(GameContentAuthoringSurfaceContext context, AttackAuthoringState draft, AttackProviderV2State state, params GUILayoutOption[] options)
+        private static void DrawDetailOrWizard(GameContentAuthoringSurfaceContext context, AttackAuthoringState draft, AttackProviderV2State state)
         {
-            Rect rect = EditorGUILayout.BeginVertical(GUIStyle.none, options);
-            DeucarianEditorVisualShell.DrawInsetSurface(rect, DeucarianEditorTheme.GlassPanelSoft, DeucarianEditorTheme.BorderSubtle, DeucarianEditorSpacing.CardRadius);
             state.DetailScroll = EditorGUILayout.BeginScrollView(state.DetailScroll);
 
             if (state.Creating)
@@ -244,17 +260,29 @@ namespace Deucarian.Attacks.Editor
                 DrawSelectedDetail(context, draft, state);
 
             EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
         }
 
         private static void DrawSelectedDetail(GameContentAuthoringSurfaceContext context, AttackAuthoringState draft, AttackProviderV2State state)
         {
-            AttackAuthoringState selectedState = AttackGameContentPreviewSelection.ResolveAttackState(context.Preview, draft);
-            if (context.SelectedItem == null || selectedState == null)
+            if (context.SelectedItem == null)
             {
-                EditorGUILayout.LabelField("Select an attack to inspect.", DeucarianEditorStyles.MutedLabel);
+                EditorGUILayout.LabelField("Select an attack to edit.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
+
+            AttackDefinitionAsset selectedAsset = context.SelectedItem.Asset as AttackDefinitionAsset;
+            AttackAuthoringState selectedState = state.EditingState;
+            if (selectedAsset == null || selectedState == null)
+            {
+                EditorGUILayout.LabelField("Selected item is not an attack asset.", DeucarianEditorStyles.MutedLabel);
+                return;
+            }
+
+            GameContentAuthoringValidationResult validation = AttackRecipeAssetCreator.ValidateForUpdate(selectedState, selectedAsset);
+            string fingerprint = BuildStateFingerprint(selectedState);
+            state.EditingContext?.Capture(fingerprint, validation);
+            context.Authoring.SetValidation(validation);
+            bool dirty = state.EditingContext != null && state.EditingContext.IsDirty;
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -266,30 +294,50 @@ namespace Deucarian.Attacks.Editor
 
                 GUILayout.FlexibleSpace();
                 DeucarianEditorMiniToolbar.PingButton(context.SelectedItem.Asset);
-                DeucarianEditorMiniToolbar.SelectButton(context.SelectedItem.Asset);
             }
 
             DeucarianEditorStatusChipRow.Draw(
                 new DeucarianEditorStatusChip(GetCompactTypeLabel(GetTypeLabel(selectedState)), DeucarianEditorStatus.Info, GetTypeLabel(selectedState)),
-                new DeucarianEditorStatusChip(context.SelectedItem.ValidationLabel, GetStatus(context.SelectedItem)),
+                new DeucarianEditorStatusChip(validation.ErrorCount > 0 ? validation.ErrorCount.ToString(CultureInfo.InvariantCulture) + " blockers" : validation.WarningCount > 0 ? validation.WarningCount.ToString(CultureInfo.InvariantCulture) + " warnings" : "Ready", validation.ErrorCount > 0 ? DeucarianEditorStatus.Error : validation.WarningCount > 0 ? DeucarianEditorStatus.Warning : DeucarianEditorStatus.Success),
                 new DeucarianEditorStatusChip(HasAnyVisual(selectedState) ? "VFX" : "NoVFX", HasAnyVisual(selectedState) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled, HasAnyVisual(selectedState) ? "Visual presentation assigned" : "No visual presentation assigned"),
                 new DeucarianEditorStatusChip(HasAnyAudio(selectedState) ? "Aud" : "Mute", HasAnyAudio(selectedState) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled, HasAnyAudio(selectedState) ? "Audio presentation assigned" : "No audio presentation assigned"));
+
+            GameContentAuthoringCommand command = GameContentAuthoringCommandBar.Draw(
+                GameContentAuthoringWorkbenchMode.Edit,
+                validation.IsValid,
+                dirty,
+                "Save",
+                state.EditingContext == null ? string.Empty : state.EditingContext.StatusMessage);
+            if (command == GameContentAuthoringCommand.Revert)
+            {
+                ReloadEditingState(context, state, selectedAsset);
+                selectedState = state.EditingState;
+                validation = AttackRecipeAssetCreator.ValidateForUpdate(selectedState, selectedAsset);
+            }
+            else if (command == GameContentAuthoringCommand.Save)
+            {
+                SaveEditedAttack(context, state, selectedAsset);
+                selectedState = state.EditingState;
+                validation = AttackRecipeAssetCreator.ValidateForUpdate(selectedState, selectedAsset);
+            }
+
+            DrawValidationIssues(validation);
 
             state.DetailPage = DeucarianEditorSegmentedControl.DrawPageChips(state.DetailPage, DetailPages);
             GUILayout.Space(DeucarianEditorSpacing.Small);
             switch (state.DetailPage)
             {
                 case 1:
-                    DrawBehavior(selectedState);
+                    DrawWizardBehavior(context, selectedState);
                     break;
                 case 2:
-                    DrawDelivery(selectedState);
+                    DrawWizardDelivery(context, selectedState);
                     break;
                 case 3:
-                    DrawPresentation(selectedState, null, state);
+                    DrawWizardPresentation(context, selectedState);
                     break;
                 case 4:
-                    DrawBalance(selectedState);
+                    DrawWizardBalance(context, selectedState);
                     break;
                 case 5:
                     DrawReferences(context.SelectedItem);
@@ -298,9 +346,94 @@ namespace Deucarian.Attacks.Editor
                     DrawAdvanced(context.SelectedItem, selectedState);
                     break;
                 default:
-                    DrawOverview(context.SelectedItem, selectedState);
+                    DrawEditOverview(context, context.SelectedItem, selectedState);
                     break;
             }
+
+            if (state.LastEditResult != null)
+            {
+                GUILayout.Space(DeucarianEditorSpacing.Small);
+                DeucarianEditorStatusPanel.DrawStatusCard(
+                    state.LastEditResult.Message,
+                    state.LastEditResult.Succeeded ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Error);
+            }
+        }
+
+        private static void ReloadEditingState(GameContentAuthoringSurfaceContext context, AttackProviderV2State state, AttackDefinitionAsset asset)
+        {
+            if (state == null || asset == null)
+                return;
+
+            state.EditingState = AttackGameContentPreviewSelection.FromAttackAsset(asset);
+            string fingerprint = BuildStateFingerprint(state.EditingState);
+            state.EditingContext = new GameContentAuthoringObjectEditorContext(context.SelectedItem, fingerprint);
+            state.EditingContext.SetStatus("Reverted");
+            state.LastEditResult = null;
+            GUI.FocusControl(null);
+            context.RequestRepaint();
+        }
+
+        private static void SaveEditedAttack(GameContentAuthoringSurfaceContext context, AttackProviderV2State state, AttackDefinitionAsset asset)
+        {
+            if (state == null || asset == null || state.EditingState == null)
+                return;
+
+            GameContentCreationResult result = AttackRecipeAssetCreator.UpdateExistingAsset(asset, state.EditingState);
+            state.LastEditResult = result;
+            if (result != null && result.Succeeded)
+            {
+                state.EditingState = AttackGameContentPreviewSelection.FromAttackAsset(asset);
+                string fingerprint = BuildStateFingerprint(state.EditingState);
+                if (state.EditingContext == null || context.SelectedItem == null)
+                    state.EditingContext = new GameContentAuthoringObjectEditorContext(context.SelectedItem, fingerprint);
+                state.EditingContext.Accept(fingerprint, "Saved");
+                context.RefreshLibrary();
+            }
+            else if (state.EditingContext != null && result != null)
+            {
+                state.EditingContext.SetStatus(result.Message);
+            }
+
+            GUI.FocusControl(null);
+            context.RequestRepaint();
+        }
+
+        private static void DrawEditOverview(GameContentAuthoringSurfaceContext context, GameContentLibraryItem item, AttackAuthoringState state)
+        {
+            DeucarianEditorCards.DrawInlineCard(() =>
+            {
+                state.AttackId = context.Authoring.DrawTextField("Stable ID", state.AttackId);
+                state.DisplayName = context.Authoring.DrawTextField("Display Name", state.DisplayName);
+                state.Icon = context.Authoring.DrawObjectField("Icon", state.Icon);
+                state.TagsCsv = context.Authoring.DrawTextField("Tags", state.TagsCsv);
+                DeucarianEditorFieldRow.Draw("Summary", () => EditorGUILayout.LabelField(BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Used By", () => EditorGUILayout.LabelField(BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
+            });
+        }
+
+        private static void DrawValidationIssues(GameContentAuthoringValidationResult validation)
+        {
+            if (validation == null || validation.Issues.Count == 0)
+                return;
+
+            var messages = new List<string>();
+            for (int i = 0; i < validation.Issues.Count; i++)
+            {
+                GameContentAuthoringValidationIssue issue = validation.Issues[i];
+                if (issue.Severity == GameContentAuthoringValidationSeverity.Info)
+                    continue;
+                messages.Add(issue.Path + ": " + issue.Message);
+            }
+
+            if (messages.Count == 0)
+                return;
+
+            DeucarianEditorStatusPanel.DrawValidationCard(
+                validation.ErrorCount > 0
+                    ? validation.ErrorCount.ToString(CultureInfo.InvariantCulture) + " edit blocker(s)."
+                    : validation.WarningCount.ToString(CultureInfo.InvariantCulture) + " edit warning(s).",
+                messages,
+                validation.ErrorCount > 0 ? DeucarianEditorStatus.Error : DeucarianEditorStatus.Warning);
         }
 
         private static void DrawOverview(GameContentLibraryItem item, AttackAuthoringState state)
@@ -634,20 +767,17 @@ namespace Deucarian.Attacks.Editor
             }
         }
 
-        private static void DrawPreviewLab(GameContentAuthoringSurfaceContext context, AttackAuthoringState draft, AttackProviderV2State state, params GUILayoutOption[] options)
+        private static void DrawPreviewLab(GameContentAuthoringSurfaceContext context, AttackAuthoringState draft, AttackProviderV2State state)
         {
-            Rect rect = EditorGUILayout.BeginVertical(GUIStyle.none, options);
-            DeucarianEditorVisualShell.DrawInsetSurface(rect, DeucarianEditorTheme.GlassPanelSoft, DeucarianEditorTheme.Accent, DeucarianEditorSpacing.CardRadius);
             state.PreviewScroll = EditorGUILayout.BeginScrollView(state.PreviewScroll);
 
             AttackAuthoringState source = state.Creating
                 ? draft
-                : AttackGameContentPreviewSelection.ResolveAttackState(context.Preview, draft);
+                : state.EditingState ?? AttackGameContentPreviewSelection.ResolveAttackState(context.Preview, draft);
             if (source == null)
             {
                 EditorGUILayout.LabelField("Preview unavailable.", DeucarianEditorStyles.MutedLabel);
                 EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndVertical();
                 return;
             }
 
@@ -675,37 +805,36 @@ namespace Deucarian.Attacks.Editor
                 actionPreview.TargetContextLabel = targetOption == null ? string.Empty : targetOption.Label;
             }
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.LabelField("Preview Lab", HeaderStyle);
-                GUILayout.FlexibleSpace();
-                DeucarianEditorStatusBadge.Draw(state.Creating ? "Draft" : "Selected", DeucarianEditorStatus.Info, GUILayout.Width(78f));
-            }
-
-            DrawPreviewControls(context, source, state, actionPreview);
-            DrawPreviewContextControls(state, sourceOptions, targetOptions);
-            context.Preview.DrawObjectPreview(
-                AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(source),
-                "Attack View",
-                "No visual asset assigned.",
-                new GameContentAuthoringObjectPreviewOptions
+            GameContentPreviewLabRenderer.Draw(
+                context.Preview,
+                new GameContentPreviewLabModel
                 {
-                    MinimumHeight = 220f,
-                    ActionPreview = actionPreview
+                    Title = "Preview Lab",
+                    PreviewTitle = "Attack View",
+                    ScopeLabel = state.Creating ? "Draft" : state.EditingContext != null && state.EditingContext.IsDirty ? "Unsaved" : "Selected",
+                    PrimaryAsset = AttackGameContentPreviewSummaries.GetPrimaryAttackPreviewAsset(source),
+                    EmptyText = "No visual asset assigned.",
+                    PreviewOptions = new GameContentAuthoringObjectPreviewOptions
+                    {
+                        MinimumHeight = 220f,
+                        ActionPreview = actionPreview
+                    },
+                    DrawControls = () => DrawPreviewControls(context, source, state, actionPreview),
+                    DrawContext = () => DrawPreviewContextControls(state, sourceOptions, targetOptions),
+                    DrawBody = () => DrawPresentation(source, eventKind =>
+                    {
+                        state.PreviewStatus = AttackGameContentPreviewActions.PreviewAttackEvent(source, eventKind, state.PreviewMuted);
+                        context.Preview.SetStatus(state.PreviewStatus);
+                    }, state),
+                    Chips = new[]
+                    {
+                        new DeucarianEditorStatusChip(HasAnyVisual(source) ? "Visual assets" : "No VFX", HasAnyVisual(source) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled),
+                        new DeucarianEditorStatusChip(state.PreviewMuted ? "Muted" : HasAnyAudio(source) ? "Audio on" : "No audio", state.PreviewMuted || !HasAnyAudio(source) ? DeucarianEditorStatus.Disabled : DeucarianEditorStatus.Success),
+                        new DeucarianEditorStatusChip(state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? "Game" : "Debug", state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
+                        new DeucarianEditorStatusChip(state.PreviewLoop ? "Loop" : "Once", state.PreviewLoop ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
+                        new DeucarianEditorStatusChip(FormatFloat(state.PreviewSpeed) + "x", DeucarianEditorStatus.Info)
+                    }
                 });
-
-            DrawPresentation(source, eventKind =>
-            {
-                state.PreviewStatus = AttackGameContentPreviewActions.PreviewAttackEvent(source, eventKind, state.PreviewMuted);
-                context.Preview.SetStatus(state.PreviewStatus);
-            }, state);
-
-            DeucarianEditorStatusChipRow.Draw(
-                new DeucarianEditorStatusChip(HasAnyVisual(source) ? "Visual assets" : "No VFX", HasAnyVisual(source) ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Disabled),
-                new DeucarianEditorStatusChip(state.PreviewMuted ? "Muted" : HasAnyAudio(source) ? "Audio on" : "No audio", state.PreviewMuted || !HasAnyAudio(source) ? DeucarianEditorStatus.Disabled : DeucarianEditorStatus.Success),
-                new DeucarianEditorStatusChip(state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? "Game" : "Debug", state.PreviewRenderMode == GameContentAuthoringActionPreviewRenderMode.Game ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
-                new DeucarianEditorStatusChip(state.PreviewLoop ? "Loop" : "Once", state.PreviewLoop ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Info),
-                new DeucarianEditorStatusChip(FormatFloat(state.PreviewSpeed) + "x", DeucarianEditorStatus.Info));
 
             string timelineAudioStatus = AttackGameContentPreviewActions.PreviewTimelineAudio(source, actionPreview, state.PreviewMuted, ref state.LastPreviewAudioPhase);
             if (!string.IsNullOrWhiteSpace(timelineAudioStatus))
@@ -721,7 +850,6 @@ namespace Deucarian.Attacks.Editor
                 context.RequestRepaint();
 
             EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
         }
 
         private static void DrawPreviewControls(
@@ -903,6 +1031,68 @@ namespace Deucarian.Attacks.Editor
             return FormatFloat(state.DamageAmount) + " " + state.DamageTypeId
                 + ", " + state.CooldownTicks.ToString(CultureInfo.InvariantCulture) + " tick cooldown"
                 + ", " + GetTypeLabel(state).ToLowerInvariant();
+        }
+
+        private static string BuildStateFingerprint(AttackAuthoringState state)
+        {
+            if (state == null)
+                return string.Empty;
+
+            return string.Join("|", new[]
+            {
+                state.AttackId ?? string.Empty,
+                state.DisplayName ?? string.Empty,
+                AssetKey(state.Icon),
+                state.TagsCsv ?? string.Empty,
+                state.DamageTypeId ?? string.Empty,
+                state.DamageAmount.ToString("R", CultureInfo.InvariantCulture),
+                state.CooldownTicks.ToString(CultureInfo.InvariantCulture),
+                state.Range.ToString("R", CultureInfo.InvariantCulture),
+                state.TargetingMode.ToString(),
+                state.DeliveryMode.ToString(),
+                state.ProjectileDefinitionId ?? string.Empty,
+                state.ProjectileSpawnableId ?? string.Empty,
+                AssetKey(state.ProjectilePrefab),
+                state.ProjectileSpeed.ToString("R", CultureInfo.InvariantCulture),
+                state.ProjectileLifetimeTicks.ToString(CultureInfo.InvariantCulture),
+                state.Homing ? "1" : "0",
+                state.HomingTurnRate.ToString("R", CultureInfo.InvariantCulture),
+                state.PierceCount.ToString(CultureInfo.InvariantCulture),
+                state.Radius.ToString("R", CultureInfo.InvariantCulture),
+                AssetKey(state.BeamVfxPrefab),
+                AssetKey(state.ImpactVfxPrefab),
+                state.MaxHits.ToString(CultureInfo.InvariantCulture),
+                state.TickIntervalSeconds.ToString("R", CultureInfo.InvariantCulture),
+                state.IncludeStatusEffect ? "1" : "0",
+                state.StatusId ?? string.Empty,
+                state.StatusDurationTicks.ToString(CultureInfo.InvariantCulture),
+                state.StatusTickRateTicks.ToString(CultureInfo.InvariantCulture),
+                state.StatusStrength.ToString("R", CultureInfo.InvariantCulture),
+                state.StatusMaxStacks.ToString(CultureInfo.InvariantCulture),
+                state.StatusStackingPolicy.ToString(),
+                state.StatusEffectNote ?? string.Empty,
+                AssetKey(state.CastAudio),
+                AssetKey(state.FireAudio),
+                AssetKey(state.ImpactAudio),
+                AssetKey(state.TickAudio),
+                AssetKey(state.ExpireAudio),
+                AssetKey(state.CastVfxPrefab),
+                AssetKey(state.FireVfxPrefab),
+                AssetKey(state.ImpactVfxPresentationPrefab),
+                AssetKey(state.TickVfxPrefab),
+                AssetKey(state.ExpireVfxPrefab)
+            });
+        }
+
+        private static string AssetKey(UnityEngine.Object asset)
+        {
+            if (asset == null)
+                return string.Empty;
+
+            string path = AssetDatabase.GetAssetPath(asset);
+            return string.IsNullOrWhiteSpace(path)
+                ? asset.GetInstanceID().ToString(CultureInfo.InvariantCulture)
+                : path;
         }
 
         private static string BuildUsedBySummary(GameContentLibraryItem item)

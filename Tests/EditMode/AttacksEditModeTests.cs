@@ -15,6 +15,7 @@ using Deucarian.GameplayFoundation;
 using Deucarian.WorldNavigation;
 using Deucarian.WorldSpawning;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -572,6 +573,75 @@ namespace Deucarian.Attacks.Tests
                 AttackRecipeAssetCreator.DestroyTransient(beam);
                 AttackRecipeAssetCreator.DestroyTransient(area);
                 AttackRecipeAssetCreator.DestroyTransient(status);
+            }
+        }
+
+        [Test]
+        public void AttackRecipeAssetCreator_UpdateExistingAssetSavesSelectedAttackSections()
+        {
+            string rootFolder = "Assets/__AttackGcaV3EditTests_" + Guid.NewGuid().ToString("N");
+            try
+            {
+                var createState = new AttackAuthoringState
+                {
+                    AttackId = "attack.test.v3-edit." + Guid.NewGuid().ToString("N"),
+                    DisplayName = "Before Edit",
+                    TagsCsv = "before",
+                    OutputRoot = rootFolder,
+                    DamageTypeId = Physical.Value,
+                    DamageAmount = 5f,
+                    CooldownTicks = 12,
+                    Range = 6f,
+                    DeliveryMode = AttackRecipeDeliveryMode.Area,
+                    Radius = 2f,
+                    MaxHits = 2
+                };
+
+                GameContentCreationResult created = AttackRecipeAssetCreator.CreateAssets(createState);
+                Assert.That(created.Succeeded, Is.True, created.Message);
+                var asset = (AttackDefinitionAsset)created.CreatedRoot;
+                Assert.That(asset, Is.Not.Null);
+
+                AttackAuthoringState editState = AttackGameContentPreviewSelection.FromAttackAsset(asset);
+                editState.DisplayName = "After Edit";
+                editState.TagsCsv = "edited, v3";
+                editState.DamageAmount = 12f;
+                editState.CooldownTicks = 20;
+                editState.Range = 9f;
+                editState.DeliveryMode = AttackRecipeDeliveryMode.Projectile;
+                editState.ProjectileDefinitionId = "projectile.test.edited";
+                editState.ProjectileSpawnableId = "projectile.test.edited";
+                editState.ProjectileSpeed = 9.5f;
+                editState.ProjectileLifetimeTicks = 90;
+                editState.ProjectilePrefab = null;
+                editState.IncludeStatusEffect = true;
+                editState.StatusId = "status.test.edited";
+                editState.StatusDurationTicks = 30;
+                editState.StatusTickRateTicks = 10;
+                editState.StatusStrength = 2f;
+                editState.StatusMaxStacks = 2;
+
+                GameContentCreationResult saved = AttackRecipeAssetCreator.UpdateExistingAsset(asset, editState);
+
+                Assert.That(saved.Succeeded, Is.True, saved.Message);
+                Assert.That(asset.DisplayName, Is.EqualTo("After Edit"));
+                Assert.That(asset.Tags, Does.Contain("edited"));
+                Assert.That(asset.Mechanics.DamageAmount, Is.EqualTo(12f));
+                Assert.That(asset.Mechanics.CooldownTicks, Is.EqualTo(20));
+                Assert.That(asset.Mechanics.Range, Is.EqualTo(9f));
+                Assert.That(asset.Delivery.Mode, Is.EqualTo(AttackRecipeDeliveryMode.Projectile));
+                Assert.That(asset.Delivery.ProjectileDefinitionId, Is.EqualTo("projectile.test.edited"));
+                Assert.That(asset.Delivery.ProjectileSpawnableId, Is.EqualTo("projectile.test.edited"));
+                Assert.That(asset.Delivery.ProjectilePrefab, Is.Null);
+                Assert.That(asset.StatusEffects.StatusEffects.Count, Is.EqualTo(1));
+                Assert.That(asset.StatusEffects.StatusEffects[0].StatusId, Is.EqualTo("status.test.edited"));
+                Assert.That(AttackRecipeAssetCreator.ValidateForUpdate(editState, asset).IsValid, Is.True);
+            }
+            finally
+            {
+                if (AssetDatabase.IsValidFolder(rootFolder))
+                    AssetDatabase.DeleteAsset(rootFolder);
+                AssetDatabase.Refresh();
             }
         }
 

@@ -556,7 +556,7 @@ namespace Deucarian.Attacks.Editor
             return selected == null ? createState : FromWaveAsset(selected);
         }
 
-        private static AttackAuthoringState FromAttackAsset(AttackDefinitionAsset asset)
+        public static AttackAuthoringState FromAttackAsset(AttackDefinitionAsset asset)
         {
             var state = new AttackAuthoringState
             {
