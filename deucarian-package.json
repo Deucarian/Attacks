@@ -1,0 +1,26 @@
+{
+  "packageId": "com.deucarian.attacks",
+  "displayName": "Deucarian Attacks",
+  "ownedCapabilities": [],
+  "runtimeAssemblies": [
+    "Deucarian.Attacks",
+    "Deucarian.Attacks.Authoring"
+  ],
+  "editorAssemblies": [
+    "Deucarian.Attacks.Editor"
+  ],
+  "sampleAssemblies": [],
+  "testAssemblies": [
+    "Deucarian.Attacks.Tests"
+  ],
+  "requiredDependencies": [
+    "com.deucarian.gameplay-foundation",
+    "com.deucarian.combat",
+    "com.deucarian.editor",
+    "com.deucarian.game-content-authoring"
+  ],
+  "optionalVersionDefinedDependencies": [],
+  "allowedDirectDebugCalls": [],
+  "allowedDirectUnityObjectLifetimeCalls": [],
+  "expectedSamplesRoot": "Samples~"
+}
