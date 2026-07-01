@@ -236,19 +236,22 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider
+    internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider
     {
         private readonly WaveAuthoringState _state = new WaveAuthoringState();
         private readonly WaveGameContentPreviewController _preview = new WaveGameContentPreviewController();
+        private readonly WaveProviderV2State _v2State = new WaveProviderV2State();
+        private readonly WaveProviderV2View _v2View = new WaveProviderV2View();
 
         public string ProviderId => "com.deucarian.attacks.wave";
         public string DisplayName => "Wave";
         public string Description => "Create a root WaveDefinition with schedule and spawn entry sections.";
         public int SortOrder => 120;
         public bool Enabled => true;
-        public void OnSelected() { }
+        public void OnSelected() { _v2State.ResetProviderSession(); }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
-        public void StopPreview() { _preview.Stop(); }
+        public void StopPreview() { _preview.Stop(); _v2State.StopPreview(); }
+        public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context) { _v2View.Draw(context, _state, _preview, _v2State); }
 
         public void Draw(GameContentAuthoringContext context)
         {
@@ -1068,6 +1071,31 @@ namespace Deucarian.Attacks.Editor
             return new GameContentAuthoringValidationResult(issues);
         }
 
+        public static GameContentAuthoringValidationResult ValidateForUpdate(WaveAuthoringState state, WaveDefinitionAsset existingAsset)
+        {
+            var issues = new List<GameContentAuthoringValidationIssue>();
+            if (state == null)
+            {
+                issues.Add(GameContentAuthoringValidationIssue.Error("Wave", "No wave edit state is available."));
+                return new GameContentAuthoringValidationResult(issues);
+            }
+
+            WaveDefinitionAsset preview = BuildRecipe(state, true);
+            try
+            {
+                issues.AddRange(ToSharedIssues(WaveDefinitionValidator.Validate(preview, WaveDefinitionValidationOptions.RuntimeFriendly)));
+                if (existingAsset == null)
+                    issues.Add(GameContentAuthoringValidationIssue.Error("Wave", "No existing wave asset is selected."));
+                else if (GameContentAuthoringEditorAssets.HasDuplicateIdExcept<WaveDefinitionAsset>(state.WaveId, existingAsset, asset => asset.Id))
+                    issues.Add(GameContentAuthoringValidationIssue.Error("Wave.Id", "Wave IDs must be unique. Another wave already uses this stable ID."));
+                return new GameContentAuthoringValidationResult(issues);
+            }
+            finally
+            {
+                DestroyTransient(preview);
+            }
+        }
+
         public static IReadOnlyList<string> GetPreviewLines(WaveAuthoringState state)
         {
             return new[]
@@ -1117,6 +1145,47 @@ namespace Deucarian.Attacks.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             return new GameContentCreationResult(true, "Created wave definition at " + rootPath, AssetDatabase.LoadAssetAtPath<WaveDefinitionAsset>(rootPath));
+        }
+
+        public static GameContentCreationResult UpdateExistingAsset(WaveDefinitionAsset root, WaveAuthoringState state)
+        {
+            if (root == null)
+                return new GameContentCreationResult(false, "No wave asset selected.", null);
+            if (state == null)
+                return new GameContentCreationResult(false, "No wave edit state is available.", root);
+
+            GameContentAuthoringValidationResult report = ValidateForUpdate(state, root);
+            if (!report.IsValid)
+                return new GameContentCreationResult(false, "Fix validation errors before saving this wave.", root);
+
+            string rootPath = AssetDatabase.GetAssetPath(root);
+            if (string.IsNullOrWhiteSpace(rootPath))
+                return new GameContentCreationResult(false, "Selected wave is not a persisted asset.", root);
+
+            string stem = GetFileStem(state);
+            WaveScheduleDefinitionAsset schedule = EnsureSectionAsset(root.Schedule, rootPath, stem + "_Schedule");
+            WaveEntriesDefinitionAsset entries = EnsureSectionAsset(root.Entries, rootPath, stem + "_Entries");
+
+            Undo.RegisterCompleteObjectUndo(root, "Save Wave");
+            Undo.RegisterCompleteObjectUndo(schedule, "Save Wave Schedule");
+            Undo.RegisterCompleteObjectUndo(entries, "Save Wave Entries");
+
+            schedule.Configure(state.StartTick);
+            entries.Configure(GetEntries(state));
+            root.Configure(
+                state.WaveId,
+                state.DisplayName,
+                GameContentAuthoringEditorAssets.SplitCsv(state.TagsCsv),
+                schedule,
+                entries,
+                root.BalancingNotes);
+
+            MarkDirty(schedule);
+            MarkDirty(entries);
+            MarkDirty(root);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            return new GameContentCreationResult(true, "Saved wave " + root.DisplayName + ".", root);
         }
 
         public static void DestroyTransient(WaveDefinitionAsset recipe)
@@ -1184,6 +1253,22 @@ namespace Deucarian.Attacks.Editor
                 for (int i = 0; i < state.Entries.Count; i++)
                     total += Math.Max(0, state.Entries[i].Count);
             return count.ToString(System.Globalization.CultureInfo.InvariantCulture) + " group(s), " + total.ToString(System.Globalization.CultureInfo.InvariantCulture) + " enemy spawn(s)";
+        }
+
+        private static T EnsureSectionAsset<T>(T section, string rootPath, string name) where T : ScriptableObject
+        {
+            if (section != null)
+                return section;
+
+            T created = ScriptableObject.CreateInstance<T>();
+            GameContentAuthoringEditorAssets.AddSubAsset(created, AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rootPath), name);
+            return created;
+        }
+
+        private static void MarkDirty(UnityEngine.Object asset)
+        {
+            if (asset != null)
+                EditorUtility.SetDirty(asset);
         }
 
         private static List<GameContentAuthoringValidationIssue> ToSharedIssues(ContentAuthoringValidationReport report)

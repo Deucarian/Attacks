@@ -896,13 +896,13 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
-        public void EnemyProvider_UsesCustomAuthoringSurfaceWithoutMigratingWave()
+        public void EnemyProvider_AndWaveProvider_UseCustomAuthoringSurfaces()
         {
             var enemyProvider = new EnemyAuthoringProvider();
             var waveProvider = new WaveAuthoringProvider();
 
             Assert.That(enemyProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
-            Assert.That(waveProvider, Is.Not.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+            Assert.That(waveProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
         }
 
         [Test]
@@ -1483,6 +1483,244 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void WaveAuthoringProvider_UsesCustomV2Surface()
+        {
+            var provider = new WaveAuthoringProvider();
+
+            Assert.That(provider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+            Assert.That(WaveProviderV2PreviewModel.ExposesRedundantSelectButton, Is.False);
+            Assert.That(GetWaveProviderV2State(provider), Is.Not.Null);
+        }
+
+        [Test]
+        public void EnemyProvider_AndWaveProvider_UseV2WithoutMigratingContentLibrary()
+        {
+            var enemyProvider = new EnemyAuthoringProvider();
+            var waveProvider = new WaveAuthoringProvider();
+            IGameContentAuthoringProvider libraryProvider = GameContentAuthoringProviderRegistry.Providers.FirstOrDefault(provider => provider.ProviderId == "com.deucarian.game-content-authoring.content-library");
+
+            Assert.That(enemyProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+            Assert.That(waveProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+            if (libraryProvider != null)
+                Assert.That(libraryProvider, Is.Not.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+        }
+
+        [Test]
+        public void WaveProviderV2ListModel_ClassifiesEnemyCountsDurationChannelsAndSearch()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient("enemy.wave.list", "Dust Mite", EnemyRole.Basic, 8f, 2f, 1, 3f, Physical.Value);
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.moss.desk-dust",
+                "Desk Dust",
+                4,
+                new[]
+                {
+                    new WaveEntryRecipe(enemy, 5, 2, 3, 10, "perimeter-west", 2),
+                    new WaveEntryRecipe(enemy, 3, 1, 8, 4, "perimeter-east", 1)
+                });
+            try
+            {
+                GameContentLibraryItem item = CreateLibraryItem("wave.moss.desk-dust", wave, GameContentLibraryKind.Wave, "Desk Dust");
+                WaveProviderV2ListItem model = WaveProviderV2ListItem.FromItem(item);
+
+                Assert.That(model.TotalEnemyCount, Is.EqualTo(8));
+                Assert.That(model.DurationTicks, Is.EqualTo(23));
+                Assert.That(model.ChannelTooltip, Does.Contain("perimeter-west"));
+                Assert.That(model.EnemyMix, Does.Contain("Dust Mite x8"));
+                Assert.That(model.Matches("desk"), Is.True);
+                Assert.That(model.Matches("perimeter-east"), Is.True);
+                Assert.That(model.Matches("23"), Is.True);
+            }
+            finally
+            {
+                WaveDefinitionAssetCreator.DestroyTransient(wave);
+                EnemyDefinitionAssetCreator.DestroyTransient(enemy);
+            }
+        }
+
+        [Test]
+        public void WaveProviderV2Preview_ScopesAndChipsExposeDraftUnsavedAndDebug()
+        {
+            var state = new WaveAuthoringState { WaveId = "wave.preview", DisplayName = "Preview Wave" };
+            state.Entries.Clear();
+            state.Entries.Add(new WaveEntryAuthoringState { Count = 4, BatchSize = 1, InitialDelayTicks = 0, IntervalTicks = 6, SpawnChannelId = "perimeter-north" });
+            var preview = new WaveProviderV2State { PreviewRenderMode = GameContentAuthoringActionPreviewRenderMode.Debug, PreviewSpeed = 2f };
+
+            Assert.That(WaveProviderV2PreviewModel.GetScopeLabel(true, false), Is.EqualTo("Draft"));
+            Assert.That(WaveProviderV2PreviewModel.GetScopeLabel(false, true), Is.EqualTo("Unsaved"));
+            AssertChip(WaveProviderV2PreviewModel.BuildChips(state, preview), "Debug", DeucarianEditorStatus.Warning);
+            AssertChip(WaveProviderV2PreviewModel.BuildChips(state, preview), "2x", DeucarianEditorStatus.Info);
+            Assert.That(WaveProviderV2View.BuildEnemyMixSummary(state), Does.Contain("Missing enemy x4"));
+            Assert.That(WaveProviderV2View.BuildChannelSummary(state), Is.EqualTo("perimeter-north"));
+        }
+
+        [Test]
+        public void WaveProviderV2Preview_DraftFieldChangesUpdateFingerprintAndPreview()
+        {
+            var state = new WaveAuthoringState { WaveId = "wave.preview.changing", DisplayName = "Changing Wave" };
+            state.Entries.Clear();
+            state.Entries.Add(new WaveEntryAuthoringState { Count = 3, BatchSize = 1, InitialDelayTicks = 0, IntervalTicks = 10, SpawnChannelId = "perimeter-north" });
+
+            string before = WaveProviderV2View.BuildStateFingerprint(state);
+            int durationBefore = WaveProviderV2View.GetApproximateDurationTicks(state);
+            state.Entries[0].Count = 6;
+            state.Entries[0].IntervalTicks = 5;
+            state.Entries[0].SpawnChannelId = "perimeter-east";
+            string after = WaveProviderV2View.BuildStateFingerprint(state);
+
+            Assert.That(after, Is.Not.EqualTo(before));
+            Assert.That(WaveProviderV2View.GetTotalEnemyCount(state), Is.EqualTo(6));
+            Assert.That(WaveProviderV2View.GetApproximateDurationTicks(state), Is.Not.EqualTo(durationBefore));
+            Assert.That(WaveProviderV2View.BuildChannelSummary(state), Is.EqualTo("perimeter-east"));
+        }
+
+        [Test]
+        public void WaveDefinitionAssetCreator_UpdateExistingAssetSavesSelectedWaveSections()
+        {
+            string rootFolder = "Assets/__WaveGcaV2EditTests_" + Guid.NewGuid().ToString("N");
+            AssetDatabase.CreateFolder("Assets", Path.GetFileName(rootFolder));
+            try
+            {
+                EnemyDefinitionAsset enemy = CreatePersistedEnemy(rootFolder, "enemy.wave.save.before", "Before Enemy");
+                EnemyDefinitionAsset enemyAfter = CreatePersistedEnemy(rootFolder, "enemy.wave.save.after", "After Enemy");
+                var createState = new WaveAuthoringState
+                {
+                    WaveId = "wave.test.v2-edit." + Guid.NewGuid().ToString("N"),
+                    DisplayName = "Before Wave",
+                    TagsCsv = "before",
+                    OutputRoot = rootFolder,
+                    StartTick = 2
+                };
+                createState.Entries.Clear();
+                createState.Entries.Add(new WaveEntryAuthoringState { Enemy = enemy, Count = 3, BatchSize = 1, InitialDelayTicks = 1, IntervalTicks = 9, SpawnChannelId = "perimeter-north" });
+                GameContentCreationResult created = WaveDefinitionAssetCreator.CreateAssets(createState);
+                Assert.That(created.Succeeded, Is.True, created.Message);
+                var asset = (WaveDefinitionAsset)created.CreatedRoot;
+
+                WaveAuthoringState edit = AttackGameContentPreviewSelection.FromWaveAsset(asset);
+                edit.DisplayName = "After Wave";
+                edit.TagsCsv = "after";
+                edit.StartTick = 5;
+                edit.Entries[0].Enemy = enemyAfter;
+                edit.Entries[0].Count = 7;
+                edit.Entries[0].BatchSize = 2;
+                edit.Entries[0].InitialDelayTicks = 3;
+                edit.Entries[0].IntervalTicks = 6;
+                edit.Entries[0].SpawnChannelId = "perimeter-east";
+                edit.Entries[0].ScalingTier = 2;
+
+                GameContentCreationResult saved = WaveDefinitionAssetCreator.UpdateExistingAsset(asset, edit);
+
+                Assert.That(saved.Succeeded, Is.True, saved.Message);
+                Assert.That(asset.DisplayName, Is.EqualTo("After Wave"));
+                Assert.That(asset.Schedule.StartTick, Is.EqualTo(5));
+                Assert.That(asset.Entries.Entries[0].Enemy, Is.EqualTo(enemyAfter));
+                Assert.That(asset.Entries.Entries[0].Count, Is.EqualTo(7));
+                Assert.That(asset.Entries.Entries[0].SpawnChannelId, Is.EqualTo("perimeter-east"));
+                Assert.That(WaveDefinitionAssetCreator.ValidateForUpdate(AttackGameContentPreviewSelection.FromWaveAsset(asset), asset).IsValid, Is.True);
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(rootFolder);
+            }
+        }
+
+        [Test]
+        public void WaveProviderV2RevertReloadsSavedWaveData()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient("enemy.wave.revert", "Saved Enemy", EnemyRole.Basic, 8f, 2f, 1, 3f, Physical.Value);
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.revert",
+                "Saved Wave",
+                2,
+                new[] { new WaveEntryRecipe(enemy, 3, 1, 0, 10, "perimeter-north") });
+            try
+            {
+                WaveAuthoringState edit = AttackGameContentPreviewSelection.FromWaveAsset(wave);
+                edit.DisplayName = "Unsaved Wave";
+                edit.StartTick = 99;
+                edit.Entries[0].Count = 42;
+                string dirtyFingerprint = WaveProviderV2View.BuildStateFingerprint(edit);
+
+                WaveAuthoringState reverted = AttackGameContentPreviewSelection.FromWaveAsset(wave);
+
+                Assert.That(WaveProviderV2View.BuildStateFingerprint(reverted), Is.Not.EqualTo(dirtyFingerprint));
+                Assert.That(reverted.DisplayName, Is.EqualTo("Saved Wave"));
+                Assert.That(reverted.StartTick, Is.EqualTo(2));
+                Assert.That(reverted.Entries[0].Count, Is.EqualTo(3));
+            }
+            finally
+            {
+                WaveDefinitionAssetCreator.DestroyTransient(wave);
+                EnemyDefinitionAssetCreator.DestroyTransient(enemy);
+            }
+        }
+
+        [Test]
+        public void WaveProviderV2State_ProviderSwitchClearsDraftAndUnsavedPreviewState()
+        {
+            var provider = new WaveAuthoringProvider();
+            WaveProviderV2State state = GetWaveProviderV2State(provider);
+            WaveDefinitionAsset transientWave = WaveDefinitionAsset.CreateTransient(
+                "wave.switch",
+                "Switch Wave",
+                0,
+                new[] { new WaveEntryRecipe(null, 1, 1, 0, 1, "perimeter-north") });
+            state.BeginCreate();
+            state.EditingState = new WaveAuthoringState { DisplayName = "Dirty Wave" };
+            try
+            {
+                state.EditingContext = new GameContentAuthoringObjectEditorContext(CreateLibraryItem("wave.switch", transientWave, GameContentLibraryKind.Wave, "Switch Wave"), "saved");
+                state.PreviewStatus = "Previewing unsaved edit";
+
+                provider.OnSelected();
+
+                Assert.That(state.Creating, Is.False);
+                Assert.That(state.EditingState, Is.Null);
+                Assert.That(state.EditingContext, Is.Null);
+                Assert.That(state.PreviewStatus, Is.EqualTo("Preview idle"));
+            }
+            finally
+            {
+                WaveDefinitionAssetCreator.DestroyTransient(transientWave);
+            }
+        }
+
+        [Test]
+        public void WaveDefinitionAssetCreator_UpdateValidationBlocksMissingEnemyInvalidTimingAndChannel()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient("enemy.wave.valid", "Valid Enemy", EnemyRole.Basic, 8f, 2f, 1, 3f, Physical.Value);
+            WaveDefinitionAsset wave = WaveDefinitionAsset.CreateTransient(
+                "wave.invalid.update",
+                "Invalid Update",
+                0,
+                new[] { new WaveEntryRecipe(enemy, 3, 1, 0, 10, "perimeter-north") });
+            try
+            {
+                WaveAuthoringState edit = AttackGameContentPreviewSelection.FromWaveAsset(wave);
+                edit.StartTick = -1;
+                edit.Entries[0].Enemy = null;
+                edit.Entries[0].Count = 0;
+                edit.Entries[0].BatchSize = 0;
+                edit.Entries[0].IntervalTicks = -1;
+                edit.Entries[0].SpawnChannelId = string.Empty;
+
+                GameContentAuthoringValidationResult validation = WaveDefinitionAssetCreator.ValidateForUpdate(edit, wave);
+                GameContentCreationResult saved = WaveDefinitionAssetCreator.UpdateExistingAsset(wave, edit);
+
+                Assert.That(validation.IsValid, Is.False);
+                Assert.That(FindIssue(validation, "Entries[0].Enemy", GameContentAuthoringValidationSeverity.Error), Is.True);
+                Assert.That(FindIssue(validation, "Entries[0].SpawnChannelId", GameContentAuthoringValidationSeverity.Error), Is.True);
+                Assert.That(saved.Succeeded, Is.False);
+            }
+            finally
+            {
+                WaveDefinitionAssetCreator.DestroyTransient(wave);
+                EnemyDefinitionAssetCreator.DestroyTransient(enemy);
+            }
+        }
+
+        [Test]
         public void PreviewStop_DoesNotDirtyActiveScene()
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -1745,6 +1983,19 @@ namespace Deucarian.Attacks.Tests
             Assert.That(match.Status, Is.EqualTo(status), "Preview chip " + label + " had the wrong status.");
         }
 
+        private static bool FindIssue(GameContentAuthoringValidationResult validation, string path, GameContentAuthoringValidationSeverity severity)
+        {
+            Assert.That(validation, Is.Not.Null);
+            for (int i = 0; i < validation.Issues.Count; i++)
+            {
+                GameContentAuthoringValidationIssue issue = validation.Issues[i];
+                if (issue.Severity == severity && string.Equals(issue.Path, path, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
         private static AttackProviderV2State GetProviderV2State(AttackAuthoringProvider provider)
         {
             FieldInfo field = typeof(AttackAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1757,6 +2008,41 @@ namespace Deucarian.Attacks.Tests
             FieldInfo field = typeof(EnemyAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, "EnemyAuthoringProvider._v2State was not found.");
             return (EnemyProviderV2State)field.GetValue(provider);
+        }
+
+        private static WaveProviderV2State GetWaveProviderV2State(WaveAuthoringProvider provider)
+        {
+            FieldInfo field = typeof(WaveAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "WaveAuthoringProvider._v2State was not found.");
+            return (WaveProviderV2State)field.GetValue(provider);
+        }
+
+        private static EnemyDefinitionAsset CreatePersistedEnemy(string rootFolder, string enemyId, string displayName)
+        {
+            string folder = rootFolder + "/" + enemyId;
+            string rootPath = folder + "/" + enemyId + "_EnemyDefinition.asset";
+            if (!AssetDatabase.IsValidFolder(folder))
+                AssetDatabase.CreateFolder(rootFolder, enemyId);
+
+            var stats = ScriptableObject.CreateInstance<EnemyStatsDefinitionAsset>();
+            stats.Configure(8f, 2f, 1, 3f, Physical.Value, 0.3f);
+            var presentation = ScriptableObject.CreateInstance<EnemyPresentationDefinitionAsset>();
+            presentation.Configure(null, new[]
+            {
+                new EnemyPresentationEventRecipe(EnemyPresentationEventKind.OnSpawn),
+                new EnemyPresentationEventRecipe(EnemyPresentationEventKind.OnHit),
+                new EnemyPresentationEventRecipe(EnemyPresentationEventKind.OnDeath)
+            });
+            var root = ScriptableObject.CreateInstance<EnemyDefinitionAsset>();
+            root.Configure(enemyId, displayName, null, EnemyRole.Basic, Array.Empty<string>(), stats, presentation);
+            AssetDatabase.CreateAsset(root, rootPath);
+            AssetDatabase.AddObjectToAsset(stats, root);
+            AssetDatabase.AddObjectToAsset(presentation, root);
+            EditorUtility.SetDirty(root);
+            EditorUtility.SetDirty(stats);
+            EditorUtility.SetDirty(presentation);
+            AssetDatabase.SaveAssets();
+            return AssetDatabase.LoadAssetAtPath<EnemyDefinitionAsset>(rootPath);
         }
 
         private static GameContentLibraryItem CreateLibraryItem(string key, UnityEngine.Object asset, GameContentLibraryKind kind, string displayName)
