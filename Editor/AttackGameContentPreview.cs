@@ -660,7 +660,7 @@ namespace Deucarian.Attacks.Editor
             return state;
         }
 
-        private static WaveAuthoringState FromWaveAsset(WaveDefinitionAsset asset)
+        public static WaveAuthoringState FromWaveAsset(WaveDefinitionAsset asset)
         {
             var state = new WaveAuthoringState
             {
