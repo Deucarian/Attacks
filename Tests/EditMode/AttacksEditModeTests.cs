@@ -1493,7 +1493,7 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
-        public void EnemyProvider_AndWaveProvider_UseV2WithoutMigratingContentLibrary()
+        public void EnemyProvider_WaveProvider_AndContentLibraryUseV2Surfaces()
         {
             var enemyProvider = new EnemyAuthoringProvider();
             var waveProvider = new WaveAuthoringProvider();
@@ -1502,7 +1502,8 @@ namespace Deucarian.Attacks.Tests
             Assert.That(enemyProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
             Assert.That(waveProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
             if (libraryProvider != null)
-                Assert.That(libraryProvider, Is.Not.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+                Assert.That(libraryProvider, Is.InstanceOf<IGameContentAuthoringSurfaceProvider>());
+            Assert.That(GameContentLibraryV2UiContract.MainRowActionLabels, Does.Not.Contain("Select"));
         }
 
         [Test]
