@@ -1408,43 +1408,74 @@ namespace Deucarian.Attacks.Tests
             var attackAsset = ScriptableObject.CreateInstance<AttackDefinitionAsset>();
             var weaponAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
             var enemyAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
+            var libraryEnemyAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
             var contentSetAsset = ScriptableObject.CreateInstance<PreviewContextAsset>();
-            var weaponPrefab = new GameObject("Moss Cursor Tower");
-            var enemyPrefab = new GameObject("Moss Dust Mite");
+            var weaponPrefab = new GameObject("Neutral Cursor Tower");
+            var enemyPrefab = new GameObject("Runner Target");
+            var libraryEnemyPrefab = new GameObject("Alpha Library Target");
             try
             {
                 weaponAsset.Presentation = ScriptableObject.CreateInstance<PreviewContextPresentation>();
                 enemyAsset.Presentation = ScriptableObject.CreateInstance<PreviewContextPresentation>();
+                libraryEnemyAsset.Presentation = ScriptableObject.CreateInstance<PreviewContextPresentation>();
                 weaponAsset.Presentation.Prefab = weaponPrefab;
                 enemyAsset.Presentation.Prefab = enemyPrefab;
+                libraryEnemyAsset.Presentation.Prefab = libraryEnemyPrefab;
 
                 GameContentLibraryItem attack = CreateLibraryItem("attack.cursor", attackAsset, GameContentLibraryKind.Attack, "Cursor Ray");
                 GameContentLibraryItem weapon = CreateLibraryItem("weapon.cursor", weaponAsset, GameContentLibraryKind.Weapon, "Cursor Tower");
-                GameContentLibraryItem enemy = CreateLibraryItem("enemy.dust-mite", enemyAsset, GameContentLibraryKind.Enemy, "Moss Dust Mite");
-                GameContentLibraryItem contentSet = CreateLibraryItem("set.moss", contentSetAsset, GameContentLibraryKind.ContentSet, "Moss Content Set");
+                GameContentLibraryItem enemy = CreateLibraryItem("enemy.runner", enemyAsset, GameContentLibraryKind.Enemy, "Runner");
+                GameContentLibraryItem libraryEnemy = CreateLibraryItem("enemy.alpha", libraryEnemyAsset, GameContentLibraryKind.Enemy, "Alpha Library Enemy");
+                GameContentLibraryItem contentSet = CreateLibraryItem("set.basic", contentSetAsset, GameContentLibraryKind.ContentSet, "Basic Content Set");
                 AddReverseReference(attack, weapon);
                 AddDirectReference(contentSet, weapon);
                 AddDirectReference(contentSet, enemy);
 
                 IReadOnlyList<AttackGameContentPreviewContextOption> sources = AttackGameContentPreviewContext.BuildSourceOptions(attack);
-                IReadOnlyList<AttackGameContentPreviewContextOption> targets = AttackGameContentPreviewContext.BuildTargetOptions(attack, new[] { attack, weapon, enemy, contentSet });
+                IReadOnlyList<AttackGameContentPreviewContextOption> targets = AttackGameContentPreviewContext.BuildTargetOptions(attack, new[] { attack, weapon, libraryEnemy, enemy, contentSet });
 
                 Assert.That(sources[0].Prefab, Is.SameAs(weaponPrefab));
                 Assert.That(sources[0].Item.Kind, Is.EqualTo(GameContentLibraryKind.Weapon));
                 Assert.That(targets[0].Prefab, Is.SameAs(enemyPrefab));
                 Assert.That(targets[0].Item.Kind, Is.EqualTo(GameContentLibraryKind.Enemy));
+                Assert.That(targets[0].Item, Is.SameAs(enemy));
+                Assert.That(targets[0].SortPriority, Is.EqualTo(0));
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(attackAsset);
                 UnityEngine.Object.DestroyImmediate(weaponAsset.Presentation);
                 UnityEngine.Object.DestroyImmediate(enemyAsset.Presentation);
+                UnityEngine.Object.DestroyImmediate(libraryEnemyAsset.Presentation);
                 UnityEngine.Object.DestroyImmediate(weaponAsset);
                 UnityEngine.Object.DestroyImmediate(enemyAsset);
+                UnityEngine.Object.DestroyImmediate(libraryEnemyAsset);
                 UnityEngine.Object.DestroyImmediate(contentSetAsset);
                 UnityEngine.Object.DestroyImmediate(weaponPrefab);
                 UnityEngine.Object.DestroyImmediate(enemyPrefab);
+                UnityEngine.Object.DestroyImmediate(libraryEnemyPrefab);
             }
+        }
+
+        [Test]
+        public void PreviewContext_ReportsNeutralFallbackStatus()
+        {
+            IReadOnlyList<AttackGameContentPreviewContextOption> sources = AttackGameContentPreviewContext.BuildSourceOptions(null);
+            IReadOnlyList<AttackGameContentPreviewContextOption> targets = AttackGameContentPreviewContext.BuildTargetOptions(null, Array.Empty<GameContentLibraryItem>());
+
+            Assert.That(sources[0].Fallback, Is.True);
+            Assert.That(targets[0].Fallback, Is.True);
+            Assert.That(AttackGameContentPreviewContext.BuildFallbackStatus(sources[0], targets[0]), Does.Contain("neutral source and target fallbacks"));
+        }
+
+        [Test]
+        public void PreviewContext_SourceContainsNoThemedSortingPreferences()
+        {
+            string packageRoot = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(AttackGameContentPreviewContext).Assembly).resolvedPath;
+            string source = File.ReadAllText(Path.Combine(packageRoot, "Editor", "AttackGameContentPreviewContext.cs"));
+
+            Assert.That(source, Does.Not.Contain("moss dust mite"));
+            Assert.That(source, Does.Not.Contain("dust mite"));
         }
 
         [Test]

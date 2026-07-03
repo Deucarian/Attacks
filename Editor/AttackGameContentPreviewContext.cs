@@ -8,18 +8,20 @@ namespace Deucarian.Attacks.Editor
 {
     internal sealed class AttackGameContentPreviewContextOption
     {
-        public AttackGameContentPreviewContextOption(string label, GameObject prefab, GameContentLibraryItem item, bool fallback)
+        public AttackGameContentPreviewContextOption(string label, GameObject prefab, GameContentLibraryItem item, bool fallback, int sortPriority)
         {
             Label = string.IsNullOrWhiteSpace(label) ? "Preview Context" : label.Trim();
             Prefab = prefab;
             Item = item;
             Fallback = fallback;
+            SortPriority = sortPriority;
         }
 
         public string Label { get; }
         public GameObject Prefab { get; }
         public GameContentLibraryItem Item { get; }
         public bool Fallback { get; }
+        public int SortPriority { get; }
     }
 
     internal static class AttackGameContentPreviewContext
@@ -40,13 +42,13 @@ namespace Deucarian.Attacks.Editor
 
                     GameObject prefab = TryReadPresentationPrefab(item.Asset);
                     string suffix = prefab == null ? " - origin emitter fallback" : " - prefab source";
-                    options.Add(new AttackGameContentPreviewContextOption(item.DisplayName + suffix, prefab, item, prefab == null));
+                    options.Add(new AttackGameContentPreviewContextOption(item.DisplayName + suffix, prefab, item, prefab == null, 0));
                 }
             }
 
             SortOptions(options, "weapon");
             if (options.Count == 0)
-                options.Add(new AttackGameContentPreviewContextOption("Origin emitter fallback", null, null, true));
+                options.Add(new AttackGameContentPreviewContextOption("Origin emitter fallback", null, null, true, 100));
             return options;
         }
 
@@ -66,7 +68,7 @@ namespace Deucarian.Attacks.Editor
                     if (!ReferencesAny(contentSet, sourceWeapons))
                         continue;
 
-                    AddEnemyReferences(contentSet.DirectReferences, options, seen, "content set");
+                    AddEnemyReferences(contentSet.DirectReferences, options, seen, "content set", 0);
                 }
             }
 
@@ -77,14 +79,27 @@ namespace Deucarian.Attacks.Editor
                     GameContentLibraryItem item = authoredItems[i];
                     if (item == null || item.Kind != GameContentLibraryKind.Enemy)
                         continue;
-                    AddEnemyOption(item, options, seen, "library");
+                    AddEnemyOption(item, options, seen, "library", 10);
                 }
             }
 
             SortOptions(options, "enemy");
             if (options.Count == 0)
-                options.Add(new AttackGameContentPreviewContextOption("Neutral target dummy fallback", null, null, true));
+                options.Add(new AttackGameContentPreviewContextOption("Neutral target dummy fallback", null, null, true, 100));
             return options;
+        }
+
+        public static string BuildFallbackStatus(AttackGameContentPreviewContextOption source, AttackGameContentPreviewContextOption target)
+        {
+            bool sourceFallback = source != null && source.Fallback;
+            bool targetFallback = target != null && target.Fallback;
+            if (!sourceFallback && !targetFallback)
+                return string.Empty;
+            if (sourceFallback && targetFallback)
+                return "Preview uses neutral source and target fallbacks because authored context prefabs are missing.";
+            if (sourceFallback)
+                return "Preview uses a neutral source fallback because no authored weapon prefab is available.";
+            return "Preview uses a neutral target fallback because no authored enemy prefab is available.";
         }
 
         public static int ClampIndex(int index, IReadOnlyList<AttackGameContentPreviewContextOption> options)
@@ -153,7 +168,8 @@ namespace Deucarian.Attacks.Editor
             IReadOnlyList<GameContentLibraryReference> references,
             List<AttackGameContentPreviewContextOption> options,
             HashSet<string> seen,
-            string sourceLabel)
+            string sourceLabel,
+            int sortPriority)
         {
             if (references == null)
                 return;
@@ -163,7 +179,7 @@ namespace Deucarian.Attacks.Editor
                 GameContentLibraryItem item = references[i] == null ? null : references[i].Target;
                 if (item == null || item.Kind != GameContentLibraryKind.Enemy)
                     continue;
-                AddEnemyOption(item, options, seen, sourceLabel);
+                AddEnemyOption(item, options, seen, sourceLabel, sortPriority);
             }
         }
 
@@ -171,14 +187,15 @@ namespace Deucarian.Attacks.Editor
             GameContentLibraryItem item,
             List<AttackGameContentPreviewContextOption> options,
             HashSet<string> seen,
-            string sourceLabel)
+            string sourceLabel,
+            int sortPriority)
         {
             if (item == null || options == null || seen == null || !seen.Add(item.Key))
                 return;
 
             GameObject prefab = TryReadPresentationPrefab(item.Asset);
             string suffix = prefab == null ? " - target dummy fallback" : " - " + sourceLabel + " target";
-            options.Add(new AttackGameContentPreviewContextOption(item.DisplayName + suffix, prefab, item, prefab == null));
+            options.Add(new AttackGameContentPreviewContextOption(item.DisplayName + suffix, prefab, item, prefab == null, sortPriority));
         }
 
         private static void SortOptions(List<AttackGameContentPreviewContextOption> options, string preferredText)
@@ -192,17 +209,17 @@ namespace Deucarian.Attacks.Editor
                 if (prefabCompare != 0)
                     return prefabCompare;
 
+                int fallbackCompare = left.Fallback.CompareTo(right.Fallback);
+                if (fallbackCompare != 0)
+                    return fallbackCompare;
+
+                int priorityCompare = left.SortPriority.CompareTo(right.SortPriority);
+                if (priorityCompare != 0)
+                    return priorityCompare;
+
                 int preferredCompare = IsPreferred(right, preferredText).CompareTo(IsPreferred(left, preferredText));
                 if (preferredCompare != 0)
                     return preferredCompare;
-
-                int mossCompare = IsPreferred(right, "moss dust mite").CompareTo(IsPreferred(left, "moss dust mite"));
-                if (mossCompare != 0)
-                    return mossCompare;
-
-                int dustMiteCompare = IsPreferred(right, "dust mite").CompareTo(IsPreferred(left, "dust mite"));
-                if (dustMiteCompare != 0)
-                    return dustMiteCompare;
 
                 return string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase);
             });

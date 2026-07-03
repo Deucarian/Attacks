@@ -832,6 +832,13 @@ namespace Deucarian.Attacks.Editor
                 actionPreview.TargetContextLabel = targetOption == null ? string.Empty : targetOption.Label;
             }
 
+            string contextStatus = AttackGameContentPreviewContext.BuildFallbackStatus(sourceOption, targetOption);
+            if (!string.IsNullOrWhiteSpace(contextStatus))
+            {
+                state.PreviewStatus = contextStatus;
+                context.Preview.SetStatus(state.PreviewStatus);
+            }
+
             AttackProviderV2PreviewScope scope = AttackProviderV2PreviewModel.GetScope(
                 state.Creating,
                 state.EditingContext != null && state.EditingContext.IsDirty);
