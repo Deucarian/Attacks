@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Converted the stable Attack, Enemy, and Wave providers into pack-aware Attacks, Enemies, and Wave / Encounter lenses with immutable typed projection contracts, read-only external-pack previews, and preserved Project Content ScriptableObject workflows.
 - Updated Attack, Enemy, and Wave authoring provider documentation/tests for the shared `Tools/Deucarian/Game Content Authoring` menu path and shared Deucarian card styling.
 - Added `Deucarian.Attacks.Authoring` ScriptableObject recipe assets for root attack definitions, mechanics, targeting, delivery, status effects, and presentation.
 - Moved the `Tools/Deucarian/Game Content Authoring` editor shell to `com.deucarian.game-content-authoring`; Attacks now contributes Attack, Enemy, and Wave providers to that shared window.

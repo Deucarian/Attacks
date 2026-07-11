@@ -2,6 +2,18 @@
 
 Game content authoring uses a root asset plus focused sections instead of one large asset with unrelated fields. The root asset is the designer-facing object. Its section assets keep gameplay data, presentation data, and scheduling data independent enough to understand and validate.
 
+## Content Pack Context
+
+The shared Game Content Authoring window always supplies a selected pack. The Attacks package contributes three reusable lenses:
+
+- `Attacks` for records with the Attack capability.
+- `Enemies` for records with the Enemy capability.
+- `Wave / Encounter` for discrete Wave records and broader Encounter, Timed Milestone, Horde, Elite, Boss Event, or Run Profile projections.
+
+For read-only external packs, template-owned adapters project common values into `AttackContentRecordProjection`, `EnemyContentRecordProjection`, and `EncounterContentRecordProjection`. The lenses render authored values and source ownership without copying records or writing the source. Missing prefab, model, VFX, or audio references use a documented numeric/summary preview fallback.
+
+For `Project Content`, the original root-plus-section ScriptableObject workflow below remains available. Creation is disabled for JSON packs, All Packs, missing sources, and any context without an explicit writable backend.
+
 ## Why Sub-Assets
 
 The wizard creates section objects as sub-assets of the root asset. That keeps the Project window workflow clean: designers select one attack, enemy, or wave, but Unity still serializes clear focused objects. Separate files can be introduced later for sections that benefit from reuse across many assets, such as audio/VFX presets or shared status effects.
@@ -32,7 +44,7 @@ Package samples may store the same sections as sibling `.asset` files because `S
 ## Creating An Attack
 
 1. Open `Tools/Deucarian/Game Content Authoring`.
-2. Select `Attack`.
+2. Select `Project Content`, then select `Attacks`.
 3. Set a stable attack ID. Use a namespaced value such as `attack.project.fire-orb`; this ID is what weapons and gameplay glue should reference.
 4. Choose an output root under `Assets`, usually `Assets/GameContent/Attacks`.
 5. Fill in mechanics, targeting, and delivery. Projectile creation requires a prefab/model reference in the wizard so the resulting recipe is immediately usable by template spawn glue.
@@ -51,7 +63,7 @@ The wizard refuses to overwrite an existing root asset. If the target attack fol
 ## Creating An Enemy
 
 1. Open `Tools/Deucarian/Game Content Authoring`.
-2. Select `Enemy`.
+2. Select `Project Content`, then select `Enemies`.
 3. Set a stable enemy ID such as `enemy.project.fast`.
 4. Choose an output root under `Assets`, usually `Assets/GameContent/Enemies`.
 5. Assign a prefab or model reference, then fill in health, speed, reward, contact damage, and collision radius.
@@ -70,7 +82,7 @@ The wizard blocks duplicate enemy IDs, invalid stats, missing required prefabs, 
 ## Creating A Wave
 
 1. Open `Tools/Deucarian/Game Content Authoring`.
-2. Select `Wave`.
+2. Select `Project Content`, then select `Wave / Encounter`.
 3. Set a stable wave ID such as `wave.project.early`.
 4. Choose an output root under `Assets`, usually `Assets/GameContent/Waves`.
 5. Add one or more entries and assign an `EnemyDefinitionAsset` to each entry.
