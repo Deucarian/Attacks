@@ -18,21 +18,30 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider
+    internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider
     {
         private readonly AttackAuthoringState _state = new AttackAuthoringState();
         private readonly AttackGameContentPreviewController _preview = new AttackGameContentPreviewController();
         private readonly AttackProviderV2State _v2State = new AttackProviderV2State();
         private readonly AttackProviderV2View _v2View = new AttackProviderV2View();
+        private readonly AttackPackAwareLensState _packState = new AttackPackAwareLensState();
 
         public string ProviderId => "com.deucarian.attacks.attack";
-        public string DisplayName => "Attack";
-        public string Description => "Create a root AttackDefinition with mechanics, targeting, delivery, status, and presentation sections.";
+        public string DisplayName => "Attacks";
+        public string Description => "Inspect attack-capable records in the selected pack or author standalone Attack assets in Project Content.";
         public int SortOrder => 100;
         public bool Enabled => true;
+        public GameContentLensDescriptor Lens { get; } = new GameContentLensDescriptor(
+            "attack",
+            "Attacks",
+            "Combat",
+            "attack",
+            100,
+            new[] { GameContentRecordCapabilities.Attack });
         public void OnSelected()
         {
             _v2State.ResetProviderSession();
+            _packState.Browser.SearchText = string.Empty;
         }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
         public void StopPreview()
@@ -43,6 +52,11 @@ namespace Deucarian.Attacks.Editor
 
         public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context)
         {
+            if (context.PackContext != null && !context.PackContext.IsProjectContent)
+            {
+                AttackPackAwareLensView.Draw(context, Lens, _packState);
+                return;
+            }
             _v2View.Draw(context, _state, _preview, _v2State);
         }
 
@@ -150,21 +164,30 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider
+    internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider
     {
         private readonly EnemyAuthoringState _state = new EnemyAuthoringState();
         private readonly EnemyGameContentPreviewController _preview = new EnemyGameContentPreviewController();
         private readonly EnemyProviderV2State _v2State = new EnemyProviderV2State();
         private readonly EnemyProviderV2View _v2View = new EnemyProviderV2View();
+        private readonly EnemyPackAwareLensState _packState = new EnemyPackAwareLensState();
 
         public string ProviderId => "com.deucarian.attacks.enemy";
-        public string DisplayName => "Enemy";
-        public string Description => "Create a root EnemyDefinition with stats and presentation sections.";
+        public string DisplayName => "Enemies";
+        public string Description => "Inspect enemy-capable records in the selected pack or author standalone Enemy assets in Project Content.";
         public int SortOrder => 110;
         public bool Enabled => true;
+        public GameContentLensDescriptor Lens { get; } = new GameContentLensDescriptor(
+            "enemy",
+            "Enemies",
+            "Actors",
+            "enemy",
+            200,
+            new[] { GameContentRecordCapabilities.Enemy });
         public void OnSelected()
         {
             _v2State.ResetProviderSession();
+            _packState.Browser.SearchText = string.Empty;
         }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
         public void StopPreview()
@@ -175,6 +198,11 @@ namespace Deucarian.Attacks.Editor
 
         public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context)
         {
+            if (context.PackContext != null && !context.PackContext.IsProjectContent)
+            {
+                EnemyPackAwareLensView.Draw(context, Lens, _packState);
+                return;
+            }
             _v2View.Draw(context, _state, _preview, _v2State);
         }
 
@@ -236,22 +264,38 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider
+    internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider
     {
         private readonly WaveAuthoringState _state = new WaveAuthoringState();
         private readonly WaveGameContentPreviewController _preview = new WaveGameContentPreviewController();
         private readonly WaveProviderV2State _v2State = new WaveProviderV2State();
         private readonly WaveProviderV2View _v2View = new WaveProviderV2View();
+        private readonly EncounterPackAwareLensState _packState = new EncounterPackAwareLensState();
 
         public string ProviderId => "com.deucarian.attacks.wave";
-        public string DisplayName => "Wave";
-        public string Description => "Create a root WaveDefinition with schedule and spawn entry sections.";
+        public string DisplayName => "Wave / Encounter";
+        public string Description => "Inspect waves, run profiles, and timed encounters or author standalone Wave assets in Project Content.";
         public int SortOrder => 120;
         public bool Enabled => true;
-        public void OnSelected() { _v2State.ResetProviderSession(); }
+        public GameContentLensDescriptor Lens { get; } = new GameContentLensDescriptor(
+            "wave-encounter",
+            "Wave / Encounter",
+            "Encounters",
+            "wave",
+            300,
+            new[] { GameContentRecordCapabilities.Encounter, GameContentRecordCapabilities.Wave });
+        public void OnSelected() { _v2State.ResetProviderSession(); _packState.Browser.SearchText = string.Empty; }
         public void DrawPreview(GameContentAuthoringPreviewContext context) { _preview.Draw(context, _state); }
         public void StopPreview() { _preview.Stop(); _v2State.StopPreview(); }
-        public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context) { _v2View.Draw(context, _state, _preview, _v2State); }
+        public void DrawCustomAuthoringSurface(GameContentAuthoringSurfaceContext context)
+        {
+            if (context.PackContext != null && !context.PackContext.IsProjectContent)
+            {
+                EncounterPackAwareLensView.Draw(context, Lens, _packState);
+                return;
+            }
+            _v2View.Draw(context, _state, _preview, _v2State);
+        }
 
         public void Draw(GameContentAuthoringContext context)
         {

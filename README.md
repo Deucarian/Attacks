@@ -8,6 +8,10 @@ Attacks answers who can attack, when they can attack, which supplied candidate s
 
 The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Install Attacks and open `Tools/Deucarian/Game Content Authoring`; the shared window comes from `com.deucarian.game-content-authoring`, while the domain-specific creation logic stays in Attacks.
 
+Those providers are now reusable pack-aware lenses. `Attacks`, `Enemies`, and `Wave / Encounter` inspect matching records from the globally selected pack through immutable typed projection contracts. They retain the stable provider IDs `com.deucarian.attacks.attack`, `com.deucarian.attacks.enemy`, and `com.deucarian.attacks.wave`; the broadened encounter label does not break old Wave registration. External JSON-backed records are clearly read-only and show their owner, source, references, validation, authored common values, and preview fallback. Selecting `Project Content` preserves the existing ScriptableObject create/edit forms and rich asset previews under `Assets/GameContent`.
+
+Game/template editor packages provide `IGameContentRecordProjectionAdapter<AttackContentRecordProjection>`, `EnemyContentRecordProjection`, or `EncounterContentRecordProjection` adapters. Attacks does not depend on those games or parse their source formats. A record can be visible in several lenses while retaining the same canonical pack-scoped key.
+
 An authored attack is a root `AttackDefinitionAsset` plus focused section assets:
 
 - `AttackMechanicsDefinitionAsset` for cooldown, range, damage amount, and damage type.
@@ -50,7 +54,7 @@ Assets/GameContent/Waves/{WaveId}/
 
 The providers validate required IDs, duplicate IDs, invalid numeric values, missing required enemy prefabs, missing wave enemy references, duplicate status IDs, existing asset paths, and output paths before creating assets. They refuse accidental overwrites and ask before writing into an existing content folder. Optional audio/VFX references are safe to leave empty; runtime presentation calls simply skip missing assets.
 
-Next authoring providers should follow the same registry shape used by the wizard: Upgrade, Tower/Weapon, Loot, shared Status Effect, Ability, and VFX/Audio preset providers.
+Additional authoring providers should follow the same pack-aware registry and projection shape without creating parallel content stores.
 
 ## Install
 
