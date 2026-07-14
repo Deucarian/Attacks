@@ -1916,6 +1916,219 @@ namespace Deucarian.Attacks.Tests
         }
 
         [Test]
+        public void WaveEntryId_UsesContentIdSemantics()
+        {
+            var numeric = new WaveEntryId("0");
+            var providerOwned = WaveEntryId.CreateNew();
+
+            Assert.That(numeric.Value, Is.EqualTo("0"));
+            Assert.That(numeric.IsValid, Is.True);
+            Assert.That(providerOwned.Value, Does.StartWith("entry-"));
+            Assert.That(providerOwned.IsValid, Is.True);
+            Assert.Throws<ArgumentException>(() => new WaveEntryId(string.Empty));
+            Assert.Throws<ArgumentException>(() => new WaveEntryId("Entry Invalid"));
+        }
+
+        [Test]
+        public void WaveDefinitionValidation_RequiresValidUniqueEntryIdsAndAllowsEquivalentRows()
+        {
+            EnemyDefinitionAsset enemy = EnemyDefinitionAsset.CreateTransient(
+                "enemy.authoring.entry-id",
+                "Entry ID Enemy",
+                EnemyRole.Basic,
+                8f,
+                2f,
+                1,
+                3f,
+                Physical.Value);
+            WaveDefinitionAsset valid = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.entry-id.valid",
+                "Valid Entry IDs",
+                0,
+                new[]
+                {
+                    new WaveEntryRecipe("alpha", enemy, 2, 1, 0, 10, "perimeter-north"),
+                    new WaveEntryRecipe("beta", enemy, 2, 1, 0, 10, "perimeter-north")
+                });
+            WaveDefinitionAsset missing = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.entry-id.missing",
+                "Missing Entry ID",
+                0,
+                new[] { new WaveEntryRecipe(string.Empty, enemy, 2, 1, 0, 10, "perimeter-north") });
+            WaveDefinitionAsset invalid = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.entry-id.invalid",
+                "Invalid Entry ID",
+                0,
+                new[] { new WaveEntryRecipe("Invalid ID", enemy, 2, 1, 0, 10, "perimeter-north") });
+            WaveDefinitionAsset duplicate = WaveDefinitionAsset.CreateTransient(
+                "wave.authoring.entry-id.duplicate",
+                "Duplicate Entry IDs",
+                0,
+                new[]
+                {
+                    new WaveEntryRecipe("same", enemy, 2, 1, 0, 10, "perimeter-north"),
+                    new WaveEntryRecipe("same", enemy, 2, 1, 0, 10, "perimeter-east")
+                });
+            try
+            {
+                ContentAuthoringValidationReport validReport = WaveDefinitionValidator.Validate(valid);
+                ContentAuthoringValidationReport missingReport = WaveDefinitionValidator.Validate(missing);
+                ContentAuthoringValidationReport invalidReport = WaveDefinitionValidator.Validate(invalid);
+                ContentAuthoringValidationReport duplicateReport = WaveDefinitionValidator.Validate(duplicate);
+
+                Assert.That(validReport.IsValid, Is.True, "Equivalent-value rows remain legal when their stable IDs differ.");
+                Assert.That(HasContentIssue(missingReport, "Entries[0].EntryId", "required"), Is.True);
+                Assert.That(HasContentIssue(invalidReport, "Entries[0].EntryId", "stable content ID"), Is.True);
+                Assert.That(HasContentIssue(duplicateReport, "Entries[1].EntryId", "unique"), Is.True);
+            }
+            finally
+            {
+                WaveDefinitionAssetCreator.DestroyTransient(valid);
+                WaveDefinitionAssetCreator.DestroyTransient(missing);
+                WaveDefinitionAssetCreator.DestroyTransient(invalid);
+                WaveDefinitionAssetCreator.DestroyTransient(duplicate);
+                EnemyDefinitionAssetCreator.DestroyTransient(enemy);
+            }
+        }
+
+        [Test]
+        public void WaveAuthoringAddCopyMoveAndFieldEditOwnAndPreserveIdentity()
+        {
+            WaveEntryAuthoringState first = WaveEntryAuthoringState.CreateNew();
+            WaveEntryAuthoringState second = WaveEntryAuthoringState.CreateNew();
+            first.Count = 7;
+            first.SpawnChannelId = "perimeter-west";
+            WaveEntryAuthoringState copy = WaveProviderV2View.CopyEntry(first);
+            var state = new WaveAuthoringState();
+            state.Entries.Clear();
+            state.Entries.Add(first);
+            state.Entries.Add(second);
+            string firstId = first.EntryId;
+            string secondId = second.EntryId;
+
+            WaveProviderV2View.MoveEntry(state, 0, 1);
+            state.Entries[1].Count = 9;
+            state.Entries[1].SpawnChannelId = "perimeter-east";
+
+            Assert.That(new WaveEntryId(firstId).IsValid, Is.True);
+            Assert.That(new WaveEntryId(secondId).IsValid, Is.True);
+            Assert.That(secondId, Is.Not.EqualTo(firstId), "Each Add path must own a fresh identity.");
+            Assert.That(copy.EntryId, Is.Not.EqualTo(firstId), "Copy must create a new identity.");
+            Assert.That(copy.Count, Is.EqualTo(7));
+            Assert.That(copy.SpawnChannelId, Is.EqualTo("perimeter-west"));
+            Assert.That(state.Entries[0], Is.SameAs(second));
+            Assert.That(state.Entries[0].EntryId, Is.EqualTo(secondId));
+            Assert.That(state.Entries[1], Is.SameAs(first));
+            Assert.That(state.Entries[1].EntryId, Is.EqualTo(firstId));
+        }
+
+        [Test]
+        public void WaveConfigureTransientPreviewAndUpdatePreserveEntryIdentityThroughUndoRedo()
+        {
+            string rootFolder = "Assets/__WaveEntryIdentityTests_" + Guid.NewGuid().ToString("N");
+            AssetDatabase.CreateFolder("Assets", Path.GetFileName(rootFolder));
+            try
+            {
+                EnemyDefinitionAsset enemy = CreatePersistedEnemy(rootFolder, "enemy.wave.entry-id", "Entry ID Enemy");
+                var source = new WaveEntryRecipe("semantic-row", enemy, 3, 1, 0, 10, "perimeter-north");
+                var entriesSection = ScriptableObject.CreateInstance<WaveEntriesDefinitionAsset>();
+                entriesSection.Configure(new[] { source });
+                Assert.That(entriesSection.Entries[0], Is.Not.SameAs(source));
+                Assert.That(entriesSection.Entries[0].EntryId.Value, Is.EqualTo("semantic-row"));
+                UnityEngine.Object.DestroyImmediate(entriesSection);
+
+                WaveDefinitionAsset transient = WaveDefinitionAsset.CreateTransient(
+                    "wave.entry-id.transient",
+                    "Transient Identity",
+                    0,
+                    new[] { source });
+                Assert.That(transient.Entries.Entries[0].EntryId.Value, Is.EqualTo("semantic-row"));
+                WaveAuthoringState previewState = AttackGameContentPreviewSelection.FromWaveAsset(transient);
+                Assert.That(previewState.Entries[0].EntryId, Is.EqualTo("semantic-row"));
+                Assert.That(WaveProviderV2View.BuildStateFingerprint(previewState), Does.Contain("semantic-row"));
+                WaveDefinitionAssetCreator.DestroyTransient(transient);
+
+                var createState = new WaveAuthoringState
+                {
+                    WaveId = "wave.entry-id.update." + Guid.NewGuid().ToString("N"),
+                    DisplayName = "Before Identity Update",
+                    OutputRoot = rootFolder
+                };
+                createState.Entries.Clear();
+                createState.Entries.Add(new WaveEntryAuthoringState
+                {
+                    EntryId = "persisted-row",
+                    Enemy = enemy,
+                    Count = 3,
+                    BatchSize = 1,
+                    IntervalTicks = 10,
+                    SpawnChannelId = "perimeter-north"
+                });
+                GameContentCreationResult created = WaveDefinitionAssetCreator.CreateAssets(createState);
+                Assert.That(created.Succeeded, Is.True, created.Message);
+                var asset = (WaveDefinitionAsset)created.CreatedRoot;
+                WaveAuthoringState edit = AttackGameContentPreviewSelection.FromWaveAsset(asset);
+                edit.Entries[0].Count = 8;
+                edit.Entries[0].SpawnChannelId = "perimeter-east";
+
+                GameContentCreationResult saved = WaveDefinitionAssetCreator.UpdateExistingAsset(asset, edit);
+
+                Assert.That(saved.Succeeded, Is.True, saved.Message);
+                Assert.That(asset.Entries.Entries[0].EntryId.Value, Is.EqualTo("persisted-row"));
+                Assert.That(asset.Entries.Entries[0].Count, Is.EqualTo(8));
+                Undo.PerformUndo();
+                Assert.That(asset.Entries.Entries[0].EntryId.Value, Is.EqualTo("persisted-row"));
+                Assert.That(asset.Entries.Entries[0].Count, Is.EqualTo(3));
+                Undo.PerformRedo();
+                Assert.That(asset.Entries.Entries[0].EntryId.Value, Is.EqualTo("persisted-row"));
+                Assert.That(asset.Entries.Entries[0].Count, Is.EqualTo(8));
+            }
+            finally
+            {
+                Undo.ClearAll();
+                AssetDatabase.DeleteAsset(rootFolder);
+            }
+        }
+
+        [Test]
+        public void WaveEntryIdMigration_AssignsLegacyIndexesOnceAndReportsConflicts()
+        {
+            string rootFolder = "Assets/__WaveEntryIdMigrationTests_" + Guid.NewGuid().ToString("N");
+            AssetDatabase.CreateFolder("Assets", Path.GetFileName(rootFolder));
+            try
+            {
+                WaveDefinitionAsset legacy = CreatePersistedWaveWithEntryIds(rootFolder, "wave.migration.legacy", string.Empty, string.Empty);
+                WaveEntryIdMigrationReport first = WaveEntryIdMigration.MigrateAssets(new[] { legacy }, true);
+                WaveEntryIdMigrationReport second = WaveEntryIdMigration.MigrateAssets(new[] { legacy }, true);
+
+                Assert.That(first.Succeeded, Is.True, first.CreateSummary());
+                Assert.That(first.MigratedAssetCount, Is.EqualTo(1));
+                Assert.That(legacy.Entries.Entries[0].EntryId.Value, Is.EqualTo("0"));
+                Assert.That(legacy.Entries.Entries[1].EntryId.Value, Is.EqualTo("1"));
+                Assert.That(second.MigratedAssetCount, Is.EqualTo(0));
+                Assert.That(second.UnchangedAssetCount, Is.EqualTo(1));
+
+                WaveDefinitionAsset partial = CreatePersistedWaveWithEntryIds(rootFolder, "wave.migration.partial", string.Empty, "1");
+                WaveDefinitionAsset invalid = CreatePersistedWaveWithEntryIds(rootFolder, "wave.migration.invalid", "Invalid ID");
+                WaveDefinitionAsset duplicate = CreatePersistedWaveWithEntryIds(rootFolder, "wave.migration.duplicate", "same", "same");
+                WaveEntryIdMigrationReport conflicts = WaveEntryIdMigration.MigrateAssets(new[] { partial, invalid, duplicate }, false);
+
+                Assert.That(conflicts.Succeeded, Is.False);
+                Assert.That(conflicts.ConflictAssetCount, Is.EqualTo(3));
+                Assert.That(conflicts.CreateSummary(), Does.Contain("partially assigned"));
+                Assert.That(conflicts.CreateSummary(), Does.Contain("invalid"));
+                Assert.That(conflicts.CreateSummary(), Does.Contain("duplicate"));
+                Assert.That(partial.Entries.Entries[0].EntryId.IsEmpty, Is.True);
+                Assert.That(partial.Entries.Entries[1].EntryId.Value, Is.EqualTo("1"));
+            }
+            finally
+            {
+                Undo.ClearAll();
+                AssetDatabase.DeleteAsset(rootFolder);
+            }
+        }
+
+        [Test]
         public void DurableBenchmark_WritesAttackEvaluationMeasurements()
         {
             BenchmarkMeasurement one = Measure(1000);
@@ -2028,6 +2241,20 @@ namespace Deucarian.Attacks.Tests
             return false;
         }
 
+        private static bool HasContentIssue(ContentAuthoringValidationReport validation, string path, string messageFragment)
+        {
+            Assert.That(validation, Is.Not.Null);
+            for (int i = 0; i < validation.Issues.Count; i++)
+            {
+                ContentAuthoringValidationIssue issue = validation.Issues[i];
+                if (string.Equals(issue.Path, path, StringComparison.Ordinal) &&
+                    issue.Message.IndexOf(messageFragment, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
         private static AttackProviderV2State GetProviderV2State(AttackAuthoringProvider provider)
         {
             FieldInfo field = typeof(AttackAuthoringProvider).GetField("_v2State", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -2075,6 +2302,32 @@ namespace Deucarian.Attacks.Tests
             EditorUtility.SetDirty(presentation);
             AssetDatabase.SaveAssets();
             return AssetDatabase.LoadAssetAtPath<EnemyDefinitionAsset>(rootPath);
+        }
+
+        private static WaveDefinitionAsset CreatePersistedWaveWithEntryIds(string rootFolder, string waveId, params string[] entryIds)
+        {
+            string folder = rootFolder + "/" + waveId;
+            string rootPath = folder + "/" + waveId + "_WaveDefinition.asset";
+            if (!AssetDatabase.IsValidFolder(folder))
+                AssetDatabase.CreateFolder(rootFolder, waveId);
+
+            var schedule = ScriptableObject.CreateInstance<WaveScheduleDefinitionAsset>();
+            schedule.Configure(0);
+            var entries = ScriptableObject.CreateInstance<WaveEntriesDefinitionAsset>();
+            var recipes = new WaveEntryRecipe[entryIds.Length];
+            for (int i = 0; i < entryIds.Length; i++)
+                recipes[i] = new WaveEntryRecipe(entryIds[i], null, 1, 1, 0, 1, "perimeter-north");
+            entries.Configure(recipes);
+            var root = ScriptableObject.CreateInstance<WaveDefinitionAsset>();
+            root.Configure(waveId, waveId, Array.Empty<string>(), schedule, entries);
+            AssetDatabase.CreateAsset(root, rootPath);
+            AssetDatabase.AddObjectToAsset(schedule, root);
+            AssetDatabase.AddObjectToAsset(entries, root);
+            EditorUtility.SetDirty(root);
+            EditorUtility.SetDirty(schedule);
+            EditorUtility.SetDirty(entries);
+            AssetDatabase.SaveAssets();
+            return AssetDatabase.LoadAssetAtPath<WaveDefinitionAsset>(rootPath);
         }
 
         private static GameContentLibraryItem CreateLibraryItem(string key, UnityEngine.Object asset, GameContentLibraryKind kind, string displayName)

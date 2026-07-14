@@ -7,6 +7,7 @@ namespace Deucarian.Attacks.Authoring
     [Serializable]
     public sealed class WaveEntryRecipe
     {
+        [SerializeField] private string _entryId = string.Empty;
         [SerializeField] private EnemyDefinitionAsset _enemy;
         [SerializeField] private int _count = 4;
         [SerializeField] private int _batchSize = 1;
@@ -20,7 +21,19 @@ namespace Deucarian.Attacks.Authoring
         }
 
         public WaveEntryRecipe(EnemyDefinitionAsset enemy, int count, int batchSize, int initialDelayTicks, int intervalTicks, string spawnChannelId, int scalingTier = 0)
+            : this(WaveEntryId.CreateNew(), enemy, count, batchSize, initialDelayTicks, intervalTicks, spawnChannelId, scalingTier)
         {
+        }
+
+        public WaveEntryRecipe(WaveEntryId entryId, EnemyDefinitionAsset enemy, int count, int batchSize, int initialDelayTicks, int intervalTicks, string spawnChannelId, int scalingTier = 0)
+            : this(entryId.Value, enemy, count, batchSize, initialDelayTicks, intervalTicks, spawnChannelId, scalingTier)
+        {
+            if (!entryId.IsValid) throw new ArgumentException("Wave entry ID must be valid and nonempty.", nameof(entryId));
+        }
+
+        public WaveEntryRecipe(string entryId, EnemyDefinitionAsset enemy, int count, int batchSize, int initialDelayTicks, int intervalTicks, string spawnChannelId, int scalingTier = 0)
+        {
+            _entryId = entryId ?? string.Empty;
             _enemy = enemy;
             _count = count;
             _batchSize = batchSize;
@@ -30,6 +43,7 @@ namespace Deucarian.Attacks.Authoring
             _scalingTier = scalingTier;
         }
 
+        public WaveEntryId EntryId => WaveEntryId.FromSerialized(_entryId);
         public EnemyDefinitionAsset Enemy => _enemy;
         public int Count => _count;
         public int BatchSize => _batchSize;
@@ -100,6 +114,7 @@ namespace Deucarian.Attacks.Authoring
                 return;
             }
 
+            var entryIds = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < items.Count; i++)
             {
                 WaveEntryRecipe entry = items[i];
@@ -108,6 +123,20 @@ namespace Deucarian.Attacks.Authoring
                 {
                     issues.Add(ContentAuthoringValidationIssue.Error(path, "Wave entry is empty."));
                     continue;
+                }
+
+                WaveEntryId entryId = entry.EntryId;
+                if (entryId.IsEmpty)
+                {
+                    issues.Add(ContentAuthoringValidationIssue.Error(path + ".EntryId", "Wave entry ID is required."));
+                }
+                else if (!entryId.IsValid)
+                {
+                    issues.Add(ContentAuthoringValidationIssue.Error(path + ".EntryId", "Wave entry ID must use stable content ID characters."));
+                }
+                else if (!entryIds.Add(entryId.Value))
+                {
+                    issues.Add(ContentAuthoringValidationIssue.Error(path + ".EntryId", "Wave entry IDs must be unique within the wave: " + entryId.Value));
                 }
 
                 if (entry.Enemy == null)

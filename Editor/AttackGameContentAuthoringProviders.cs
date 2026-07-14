@@ -327,7 +327,7 @@ namespace Deucarian.Attacks.Editor
 
                 GUILayout.Space(4f);
                 if (context.DrawSecondaryButton("Add Entry", true, GUILayout.Height(24f)))
-                    _state.Entries.Add(new WaveEntryAuthoringState());
+                    _state.Entries.Add(WaveEntryAuthoringState.CreateNew());
             });
 
             context.DrawSection("Preview", () =>
@@ -451,16 +451,17 @@ namespace Deucarian.Attacks.Editor
         public string TagsCsv = "wave, early";
         public string OutputRoot = "Assets/GameContent/Waves";
         public int StartTick;
-        public readonly List<WaveEntryAuthoringState> Entries = new List<WaveEntryAuthoringState> { new WaveEntryAuthoringState() };
+        public readonly List<WaveEntryAuthoringState> Entries = new List<WaveEntryAuthoringState> { WaveEntryAuthoringState.CreateNew() };
 
         public void EnsureEntries()
         {
-            if (Entries.Count == 0) Entries.Add(new WaveEntryAuthoringState());
+            if (Entries.Count == 0) Entries.Add(WaveEntryAuthoringState.CreateNew());
         }
     }
 
     internal sealed class WaveEntryAuthoringState
     {
+        public string EntryId = WaveEntryId.CreateNew().Value;
         public EnemyDefinitionAsset Enemy;
         public int Count = 4;
         public int BatchSize = 1;
@@ -468,6 +469,11 @@ namespace Deucarian.Attacks.Editor
         public int IntervalTicks = 12;
         public string SpawnChannelId = "perimeter-north";
         public int ScalingTier;
+
+        public static WaveEntryAuthoringState CreateNew()
+        {
+            return new WaveEntryAuthoringState();
+        }
     }
 
     internal static class AttackRecipeAssetCreator
@@ -1267,7 +1273,7 @@ namespace Deucarian.Attacks.Editor
             for (int i = 0; i < state.Entries.Count; i++)
             {
                 WaveEntryAuthoringState entry = state.Entries[i];
-                entries[i] = new WaveEntryRecipe(entry.Enemy, entry.Count, entry.BatchSize, entry.InitialDelayTicks, entry.IntervalTicks, entry.SpawnChannelId, entry.ScalingTier);
+                entries[i] = new WaveEntryRecipe(entry.EntryId, entry.Enemy, entry.Count, entry.BatchSize, entry.InitialDelayTicks, entry.IntervalTicks, entry.SpawnChannelId, entry.ScalingTier);
             }
 
             return entries;

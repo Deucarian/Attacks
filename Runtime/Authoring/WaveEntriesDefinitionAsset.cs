@@ -24,7 +24,7 @@ namespace Deucarian.Attacks.Authoring
                 WaveEntryRecipe entry = entries[i];
                 _entries[i] = entry == null
                     ? null
-                    : new WaveEntryRecipe(entry.Enemy, entry.Count, entry.BatchSize, entry.InitialDelayTicks, entry.IntervalTicks, entry.SpawnChannelId, entry.ScalingTier);
+                    : new WaveEntryRecipe(entry.EntryId.Value, entry.Enemy, entry.Count, entry.BatchSize, entry.InitialDelayTicks, entry.IntervalTicks, entry.SpawnChannelId, entry.ScalingTier);
             }
         }
     }
