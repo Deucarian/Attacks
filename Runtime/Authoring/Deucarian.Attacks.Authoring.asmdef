@@ -3,7 +3,8 @@
   "rootNamespace": "Deucarian.Attacks.Authoring",
   "references": [
     "Deucarian.Attacks",
-    "Deucarian.Combat"
+    "Deucarian.Combat",
+    "Deucarian.GameplayFoundation"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

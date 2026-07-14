@@ -678,6 +678,7 @@ namespace Deucarian.Attacks.Editor
                 if (entry == null) continue;
                 state.Entries.Add(new WaveEntryAuthoringState
                 {
+                    EntryId = entry.EntryId.Value,
                     Enemy = entry.Enemy,
                     Count = entry.Count,
                     BatchSize = entry.BatchSize,
