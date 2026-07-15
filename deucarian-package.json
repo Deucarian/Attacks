@@ -17,7 +17,8 @@
     "com.deucarian.gameplay-foundation",
     "com.deucarian.combat",
     "com.deucarian.editor",
-    "com.deucarian.game-content-authoring"
+    "com.deucarian.game-content-authoring",
+    "com.unity.modules.audio"
   ],
   "optionalVersionDefinedDependencies": [],
   "allowedDirectDebugCalls": [],
