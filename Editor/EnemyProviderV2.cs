@@ -9,36 +9,8 @@ using UnityEngine;
 
 namespace Deucarian.Attacks.Editor
 {
-    internal sealed class EnemyProviderV2State
+    internal sealed class EnemyProviderV2State : GameContentAuthoringProviderSessionState<EnemyAuthoringState>
     {
-        public string SearchText = string.Empty;
-        public bool Creating;
-        public int DetailPage;
-        public int WizardStep;
-        public Vector2 ListScroll;
-        public Vector2 DetailScroll;
-        public Vector2 PreviewScroll;
-        public bool PreviewMuted = true;
-        public bool PreviewLoop = true;
-        public float PreviewSpeed = 1f;
-        public bool PreviewPlaying = true;
-        public GameContentAuthoringActionPreviewRenderMode PreviewRenderMode = GameContentAuthoringActionPreviewRenderMode.Game;
-        public double PreviewStartTime;
-        public float PausedNormalizedTime = 0.5f;
-        public string ActivePreviewKey = string.Empty;
-        public string PreviewStatus = "Preview idle";
-        public EnemyAuthoringState EditingState;
-        public GameContentAuthoringObjectEditorContext EditingContext;
-        public GameContentCreationResult LastEditResult;
-
-        public void StopPreview()
-        {
-            PreviewPlaying = false;
-            PreviewStartTime = 0d;
-            PausedNormalizedTime = 0.5f;
-            PreviewStatus = "Preview stopped";
-        }
-
         public void BeginCreate()
         {
             Creating = true;
@@ -53,40 +25,6 @@ namespace Deucarian.Attacks.Editor
             Creating = false;
             DetailScroll = Vector2.zero;
             PreviewStatus = "Previewing selected enemy";
-        }
-
-        public void ResetProviderSession()
-        {
-            Creating = false;
-            DetailPage = 0;
-            WizardStep = 0;
-            ListScroll = Vector2.zero;
-            DetailScroll = Vector2.zero;
-            PreviewScroll = Vector2.zero;
-            ActivePreviewKey = string.Empty;
-            PreviewStatus = "Preview idle";
-            ClearEditingState();
-        }
-
-        public void SetPreviewSource(string key, EnemyGameContentPreviewController controller)
-        {
-            key = key ?? string.Empty;
-            if (string.Equals(ActivePreviewKey, key, StringComparison.Ordinal))
-                return;
-
-            controller?.Stop();
-            ActivePreviewKey = key;
-            PreviewPlaying = true;
-            PreviewStartTime = EditorApplication.timeSinceStartup;
-            PausedNormalizedTime = 0f;
-            PreviewStatus = "Previewing";
-        }
-
-        public void ClearEditingState()
-        {
-            EditingState = null;
-            EditingContext = null;
-            LastEditResult = null;
         }
     }
 
@@ -177,7 +115,7 @@ namespace Deucarian.Attacks.Editor
                 : context.SelectedItem == null
                     ? string.Empty
                     : context.SelectedItem.Key;
-            state.SetPreviewSource(key, previewController);
+            state.SetPreviewSource(key, () => previewController?.Stop());
         }
 
         private static void DrawEnemyList(
@@ -327,7 +265,10 @@ namespace Deucarian.Attacks.Editor
                 validation = EnemyDefinitionAssetCreator.ValidateForUpdate(selectedState, selectedAsset);
             }
 
-            DrawValidationIssues(validation);
+            GameContentAuthoringProviderGUI.DrawValidationIssues(
+                validation,
+                GameContentAuthoringValidationSummaryStyle.Edit,
+                false);
 
             state.DetailPage = DeucarianEditorSegmentedControl.DrawPageChips(state.DetailPage, DetailPages);
             GUILayout.Space(DeucarianEditorSpacing.Small);
@@ -413,31 +354,6 @@ namespace Deucarian.Attacks.Editor
             });
         }
 
-        private static void DrawValidationIssues(GameContentAuthoringValidationResult validation)
-        {
-            if (validation == null || validation.Issues.Count == 0)
-                return;
-
-            var messages = new List<string>();
-            for (int i = 0; i < validation.Issues.Count; i++)
-            {
-                GameContentAuthoringValidationIssue issue = validation.Issues[i];
-                if (issue.Severity == GameContentAuthoringValidationSeverity.Info)
-                    continue;
-                messages.Add(issue.Path + ": " + issue.Message);
-            }
-
-            if (messages.Count == 0)
-                return;
-
-            DeucarianEditorStatusPanel.DrawValidationCard(
-                validation.ErrorCount > 0
-                    ? validation.ErrorCount.ToString(CultureInfo.InvariantCulture) + " edit blocker(s)."
-                    : validation.WarningCount.ToString(CultureInfo.InvariantCulture) + " edit warning(s).",
-                messages,
-                validation.ErrorCount > 0 ? DeucarianEditorStatus.Error : DeucarianEditorStatus.Warning);
-        }
-
         private static void DrawStats(EnemyAuthoringState state)
         {
             DeucarianEditorCards.DrawInlineCard(() =>
@@ -500,8 +416,8 @@ namespace Deucarian.Attacks.Editor
 
             DeucarianEditorDiagnosticsDrawer.Draw("enemy-v2-references-" + item.Key, "Serialized References", () =>
             {
-                DrawRawReferences("Direct", item.DirectReferences);
-                DrawRawReferences("Referenced By", item.ReverseReferences);
+                GameContentAuthoringProviderGUI.DrawReferenceList("Direct", item.DirectReferences);
+                GameContentAuthoringProviderGUI.DrawReferenceList("Referenced By", item.ReverseReferences);
             });
         }
 
@@ -853,24 +769,6 @@ namespace Deucarian.Attacks.Editor
         private static void DrawValue(string label, string value)
         {
             DeucarianEditorFieldRow.Draw(label, () => EditorGUILayout.LabelField(value ?? string.Empty, DeucarianEditorStyles.MutedLabel));
-        }
-
-        private static void DrawRawReferences(string title, IReadOnlyList<GameContentLibraryReference> references)
-        {
-            EditorGUILayout.LabelField(title, DeucarianEditorStyles.SectionTitle);
-            if (references == null || references.Count == 0)
-            {
-                EditorGUILayout.LabelField("None", DeucarianEditorStyles.MutedLabel);
-                return;
-            }
-
-            for (int i = 0; i < references.Count; i++)
-            {
-                GameContentLibraryReference reference = references[i];
-                if (reference == null || reference.Target == null)
-                    continue;
-                EditorGUILayout.LabelField(reference.Target.DisplayName + " - " + reference.PropertyPath, DeucarianEditorStyles.MutedLabel);
-            }
         }
 
         private static string BuildHumanSummary(EnemyAuthoringState state)

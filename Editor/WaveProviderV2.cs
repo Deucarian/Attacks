@@ -10,35 +10,8 @@ using UnityEngine;
 
 namespace Deucarian.Attacks.Editor
 {
-    internal sealed class WaveProviderV2State
+    internal sealed class WaveProviderV2State : GameContentAuthoringProviderSessionState<WaveAuthoringState>
     {
-        public string SearchText = string.Empty;
-        public bool Creating;
-        public int DetailPage;
-        public int WizardStep;
-        public Vector2 ListScroll;
-        public Vector2 DetailScroll;
-        public Vector2 PreviewScroll;
-        public bool PreviewLoop = true;
-        public bool PreviewPlaying = true;
-        public float PreviewSpeed = 1f;
-        public GameContentAuthoringActionPreviewRenderMode PreviewRenderMode = GameContentAuthoringActionPreviewRenderMode.Game;
-        public double PreviewStartTime;
-        public float PausedNormalizedTime = 0.5f;
-        public string ActivePreviewKey = string.Empty;
-        public string PreviewStatus = "Preview idle";
-        public WaveAuthoringState EditingState;
-        public GameContentAuthoringObjectEditorContext EditingContext;
-        public GameContentCreationResult LastEditResult;
-
-        public void StopPreview()
-        {
-            PreviewPlaying = false;
-            PreviewStartTime = 0d;
-            PausedNormalizedTime = 0.5f;
-            PreviewStatus = "Preview stopped";
-        }
-
         public void BeginCreate()
         {
             Creating = true;
@@ -47,40 +20,6 @@ namespace Deucarian.Attacks.Editor
             DetailScroll = Vector2.zero;
             ClearEditingState();
             PreviewStatus = "Previewing draft wave";
-        }
-
-        public void ResetProviderSession()
-        {
-            Creating = false;
-            DetailPage = 0;
-            WizardStep = 0;
-            ListScroll = Vector2.zero;
-            DetailScroll = Vector2.zero;
-            PreviewScroll = Vector2.zero;
-            ActivePreviewKey = string.Empty;
-            PreviewStatus = "Preview idle";
-            ClearEditingState();
-        }
-
-        public void SetPreviewSource(string key, WaveGameContentPreviewController controller)
-        {
-            key = key ?? string.Empty;
-            if (string.Equals(ActivePreviewKey, key, StringComparison.Ordinal))
-                return;
-
-            controller?.Stop();
-            ActivePreviewKey = key;
-            PreviewPlaying = true;
-            PreviewStartTime = EditorApplication.timeSinceStartup;
-            PausedNormalizedTime = 0f;
-            PreviewStatus = "Previewing";
-        }
-
-        public void ClearEditingState()
-        {
-            EditingState = null;
-            EditingContext = null;
-            LastEditResult = null;
         }
     }
 
@@ -186,7 +125,7 @@ namespace Deucarian.Attacks.Editor
                 : context.SelectedItem == null
                     ? string.Empty
                     : context.SelectedItem.Key;
-            state.SetPreviewSource(key, previewController);
+            state.SetPreviewSource(key, () => previewController?.Stop());
         }
 
         private static void DrawWaveList(GameContentAuthoringSurfaceContext context, WaveProviderV2State state, IReadOnlyList<WaveProviderV2ListItem> items)
@@ -322,7 +261,7 @@ namespace Deucarian.Attacks.Editor
                     break;
             }
 
-            DrawValidationIssues(validation);
+            GameContentAuthoringProviderGUI.DrawValidationIssues(validation);
         }
 
         private static void HandleEditCommand(GameContentAuthoringSurfaceContext context, WaveProviderV2State state, WaveDefinitionAsset asset, GameContentAuthoringCommand command)
@@ -399,7 +338,7 @@ namespace Deucarian.Attacks.Editor
                     break;
             }
 
-            DrawValidationIssues(validation);
+            GameContentAuthoringProviderGUI.DrawValidationIssues(validation);
             context.Authoring.DrawCreationResult();
         }
 
@@ -420,7 +359,7 @@ namespace Deucarian.Attacks.Editor
                 state.OutputRoot = context.Authoring.DrawOutputRootField(state.OutputRoot);
 
             DrawSummaryRows(
-                Row("Readiness", BuildValidationSummary(validation)),
+                Row("Readiness", new GameContentAuthoringValidationSummary(validation).ReadinessLabel),
                 Row("Total Enemies", GetTotalEnemyCount(state).ToString(CultureInfo.InvariantCulture)),
                 Row("Approx Duration", GetApproximateDurationTicks(state).ToString(CultureInfo.InvariantCulture) + " tick(s)"),
                 Row("Enemy Mix", BuildEnemyMixSummary(state)),
@@ -566,7 +505,7 @@ namespace Deucarian.Attacks.Editor
                 EditorGUILayout.LabelField(lines[i], DeucarianEditorStyles.MutedLabel);
 
             DrawSummaryRows(
-                Row("Readiness", BuildValidationSummary(validation)),
+                Row("Readiness", new GameContentAuthoringValidationSummary(validation).ReadinessLabel),
                 Row("Entries", state.Entries.Count.ToString(CultureInfo.InvariantCulture)),
                 Row("Total Enemies", GetTotalEnemyCount(state).ToString(CultureInfo.InvariantCulture)),
                 Row("Channels", BuildChannelSummary(state)));
@@ -782,7 +721,7 @@ namespace Deucarian.Attacks.Editor
             {
                 new DeucarianEditorStatusChip(GetTotalEnemyCount(state).ToString(CultureInfo.InvariantCulture) + " enemies", GetTotalEnemyCount(state) > 0 ? DeucarianEditorStatus.Success : DeucarianEditorStatus.Error),
                 new DeucarianEditorStatusChip(GetApproximateDurationTicks(state).ToString(CultureInfo.InvariantCulture) + " ticks", DeucarianEditorStatus.Info),
-                new DeucarianEditorStatusChip(BuildValidationSummary(validation), validation != null && validation.ErrorCount > 0 ? DeucarianEditorStatus.Error : validation != null && validation.WarningCount > 0 ? DeucarianEditorStatus.Warning : DeucarianEditorStatus.Success),
+                new DeucarianEditorStatusChip(new GameContentAuthoringValidationSummary(validation).ReadinessLabel, validation != null && validation.ErrorCount > 0 ? DeucarianEditorStatus.Error : validation != null && validation.WarningCount > 0 ? DeucarianEditorStatus.Warning : DeucarianEditorStatus.Success),
                 new DeucarianEditorStatusChip(BuildChannelSummary(state) == "None" ? "NoChannel" : "Channels", BuildChannelSummary(state) == "None" ? DeucarianEditorStatus.Error : DeucarianEditorStatus.Success, BuildChannelSummary(state)),
                 new DeucarianEditorStatusChip(item == null ? "Draft" : BuildUsageSummary(item), item == null || item.ReverseReferences.Count == 0 ? DeucarianEditorStatus.Disabled : DeucarianEditorStatus.Success)
             };
@@ -832,34 +771,9 @@ namespace Deucarian.Attacks.Editor
             }
         }
 
-        private static void DrawValidationIssues(GameContentAuthoringValidationResult validation)
-        {
-            if (validation == null || validation.Issues.Count == 0)
-                return;
-
-            var messages = new List<string>();
-            for (int i = 0; i < validation.Issues.Count; i++)
-            {
-                GameContentAuthoringValidationIssue issue = validation.Issues[i];
-                string prefix = string.IsNullOrWhiteSpace(issue.Path) ? string.Empty : issue.Path + ": ";
-                messages.Add(prefix + issue.Message);
-            }
-
-            DeucarianEditorStatus status = validation.ErrorCount > 0
-                ? DeucarianEditorStatus.Error
-                : validation.WarningCount > 0
-                    ? DeucarianEditorStatus.Warning
-                    : DeucarianEditorStatus.Info;
-            DeucarianEditorStatusPanel.DrawValidationCard(BuildValidationSummary(validation), messages, status);
-        }
-
         private static void DrawSummaryRows(params GameContentAuthoringPreviewRow[] rows)
         {
-            for (int i = 0; i < rows.Length; i++)
-            {
-                GameContentAuthoringPreviewRow row = rows[i];
-                DeucarianEditorFieldRow.Draw(row.Label, () => EditorGUILayout.LabelField(row.Value, EditorStyles.label));
-            }
+            GameContentAuthoringProviderGUI.DrawSummaryRows(rows);
         }
 
         private static GameContentAuthoringPreviewRow Row(string label, string value)
@@ -902,17 +816,6 @@ namespace Deucarian.Attacks.Editor
                 SpawnChannelId = entry.SpawnChannelId,
                 ScalingTier = entry.ScalingTier
             };
-        }
-
-        private static string BuildValidationSummary(GameContentAuthoringValidationResult validation)
-        {
-            if (validation == null)
-                return "Pending";
-            if (validation.ErrorCount > 0)
-                return validation.ErrorCount.ToString(CultureInfo.InvariantCulture) + " blocker(s)";
-            if (validation.WarningCount > 0)
-                return validation.WarningCount.ToString(CultureInfo.InvariantCulture) + " warning(s)";
-            return "Ready";
         }
 
         private static string BuildUsageSummary(GameContentLibraryItem item)
