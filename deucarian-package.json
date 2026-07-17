@@ -1,6 +1,7 @@
 {
   "packageId": "com.deucarian.attacks",
   "displayName": "Deucarian Attacks",
+  "samplePolicy": "playable-scene",
   "ownedCapabilities": [],
   "runtimeAssemblies": [
     "Deucarian.Attacks",
@@ -9,7 +10,9 @@
   "editorAssemblies": [
     "Deucarian.Attacks.Editor"
   ],
-  "sampleAssemblies": [],
+  "sampleAssemblies": [
+    "Deucarian.Attacks.Samples"
+  ],
   "testAssemblies": [
     "Deucarian.Attacks.Tests"
   ],
