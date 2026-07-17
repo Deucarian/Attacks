@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-07-17
 
+- Aligned package metadata and samples with the portfolio contract; direct Deucarian dependencies now use the coordinated patch versions.
+- Replaced duplicated Attack, Enemy, and Wave provider state, validation, reference, list, and summary code with shared Game Content Authoring primitives.
 - Converted the stable Attack, Enemy, and Wave providers into pack-aware Attacks, Enemies, and Wave / Encounter lenses with immutable typed projection contracts, read-only external-pack previews, and preserved Project Content ScriptableObject workflows.
 - Updated Attack, Enemy, and Wave authoring provider documentation/tests for the shared `Tools/Deucarian/Game Content Authoring` menu path and shared Deucarian card styling.
 - Added `Deucarian.Attacks.Authoring` ScriptableObject recipe assets for root attack definitions, mechanics, targeting, delivery, status effects, and presentation.
