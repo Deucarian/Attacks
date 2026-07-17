@@ -1,6 +1,6 @@
 {
   "name": "com.deucarian.attacks",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Deucarian Attacks",
   "description": "Pure C# attack orchestration plus Unity game content authoring assets and authoring providers.",
   "unity": "6000.3",
@@ -11,10 +11,10 @@
   },
   "license": "MIT",
   "dependencies": {
-    "com.deucarian.gameplay-foundation": "0.1.0",
-    "com.deucarian.combat": "0.1.0",
-    "com.deucarian.editor": "1.0.0",
-    "com.deucarian.game-content-authoring": "0.1.0"
+    "com.deucarian.gameplay-foundation": "0.1.1",
+    "com.deucarian.combat": "0.1.1",
+    "com.deucarian.editor": "1.0.3",
+    "com.deucarian.game-content-authoring": "0.1.1"
   },
   "samples": [
     {
