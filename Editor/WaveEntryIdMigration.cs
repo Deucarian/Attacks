@@ -51,7 +51,7 @@ namespace Deucarian.Attacks.Editor
 
     public static class WaveEntryIdMigration
     {
-        [MenuItem("Tools/Deucarian/Attacks/Migrate Project Wave Entry IDs")]
+        [MenuItem("Tools/Deucarian/Gameplay/Simulation/Attacks/Migrate Project Wave Entry IDs")]
         private static void MigrateProjectContentFromMenu()
         {
             WaveEntryIdMigrationReport report = MigrateProjectOwnedWaveAssets();
