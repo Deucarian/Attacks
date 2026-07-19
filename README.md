@@ -6,7 +6,7 @@ Attacks answers who can attack, when they can attack, which supplied candidate s
 
 ## Game Content Authoring
 
-The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Install Attacks and open `Tools/Deucarian/Game Content Authoring`; the shared window comes from `com.deucarian.game-content-authoring`, while the domain-specific creation logic stays in Attacks.
+The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Install Attacks and open `Tools/Deucarian/Tools & Quality/Game Content Authoring`; the shared window comes from `com.deucarian.game-content-authoring`, while the domain-specific creation logic stays in Attacks.
 
 Those providers are now reusable pack-aware lenses. `Attacks`, `Enemies`, and `Wave / Encounter` inspect matching records from the globally selected pack through immutable typed projection contracts. They retain the stable provider IDs `com.deucarian.attacks.attack`, `com.deucarian.attacks.enemy`, and `com.deucarian.attacks.wave`; the broadened encounter label does not break old Wave registration. External JSON-backed records are clearly read-only and show their owner, source, references, validation, authored common values, and preview fallback. Selecting `Project Content` preserves the existing ScriptableObject create/edit forms and rich asset previews under `Assets/GameContent`.
 

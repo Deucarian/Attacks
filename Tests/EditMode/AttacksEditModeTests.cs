@@ -319,7 +319,7 @@ namespace Deucarian.Attacks.Tests
         [Test]
         public void SharedGameContentAuthoringSurface_ExposesMenuAndAttackProviders()
         {
-            Assert.AreEqual("Tools/Deucarian/Game Content Authoring", GameContentAuthoringWindow.MenuPath);
+            Assert.AreEqual("Tools/Deucarian/Tools & Quality/Game Content Authoring", GameContentAuthoringWindow.MenuPath);
 
             var providerIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (IGameContentAuthoringProvider provider in GameContentAuthoringProviderRegistry.Providers)
