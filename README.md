@@ -16,10 +16,6 @@ Those providers are now reusable pack-aware lenses. `Attacks`, `Enemies`, and `W
 
 Game/template editor packages provide `IGameContentRecordProjectionAdapter<AttackContentRecordProjection>`, `EnemyContentRecordProjection`, or `EncounterContentRecordProjection` adapters. Attacks does not depend on those games or parse their source formats. A record can be visible in several lenses while retaining the same canonical pack-scoped key.
 
-Those providers are now reusable pack-aware lenses. `Attacks`, `Enemies`, and `Wave / Encounter` inspect matching records from the globally selected pack through immutable typed projection contracts. They retain the stable provider IDs `com.deucarian.attacks.attack`, `com.deucarian.attacks.enemy`, and `com.deucarian.attacks.wave`; the broadened encounter label does not break old Wave registration. External JSON-backed records are clearly read-only and show their owner, source, references, validation, authored common values, and preview fallback. Selecting `Project Content` preserves the existing ScriptableObject create/edit forms and rich asset previews under `Assets/GameContent`.
-
-Game/template editor packages provide `IGameContentRecordProjectionAdapter<AttackContentRecordProjection>`, `EnemyContentRecordProjection`, or `EncounterContentRecordProjection` adapters. Attacks does not depend on those games or parse their source formats. A record can be visible in several lenses while retaining the same canonical pack-scoped key.
-
 An authored attack is a root `AttackDefinitionAsset` plus focused section assets:
 
 - `AttackMechanicsDefinitionAsset` for cooldown, range, damage amount, and damage type.
