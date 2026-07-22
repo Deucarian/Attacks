@@ -13,7 +13,7 @@
   "dependencies": {
     "com.deucarian.gameplay-foundation": "0.1.1",
     "com.deucarian.combat": "0.1.1",
-    "com.deucarian.editor": "1.0.3",
+    "com.deucarian.editor": "1.0.5",
     "com.deucarian.game-content-authoring": "0.1.1"
   },
   "samples": [
