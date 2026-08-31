@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Registered Attacks authoring and wave-ID migration actions with Deucarian Control Center and removed the package-owned global migration menu item.
+
 ## 0.1.1 - 2026-07-17
 
 - Aligned package metadata and samples with the portfolio contract; direct Deucarian dependencies now use the coordinated patch versions.
