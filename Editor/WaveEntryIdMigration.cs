@@ -51,16 +51,6 @@ namespace Deucarian.Attacks.Editor
 
     public static class WaveEntryIdMigration
     {
-        [MenuItem("Tools/Deucarian/Gameplay/Simulation/Attacks/Migrate Project Wave Entry IDs")]
-        private static void MigrateProjectContentFromMenu()
-        {
-            WaveEntryIdMigrationReport report = MigrateProjectOwnedWaveAssets();
-            EditorUtility.DisplayDialog(
-                report.Succeeded ? "Wave Entry ID Migration" : "Wave Entry ID Migration Conflicts",
-                report.CreateSummary(),
-                "OK");
-        }
-
         public static WaveEntryIdMigrationReport MigrateProjectOwnedWaveAssets(string assetRoot = "Assets")
         {
             string normalizedRoot = NormalizeProjectAssetRoot(assetRoot);
