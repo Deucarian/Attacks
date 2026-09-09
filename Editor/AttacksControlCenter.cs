@@ -21,7 +21,7 @@ namespace Deucarian.Attacks.Editor
                 GameContentAuthoringWindow.Open,
                 PackageId,
                 searchTerms: new[] { "attack", "enemy", "wave", "migration" },
-                order: 120));
+                order: 120, createPage: GameContentAuthoringWindow.CreatePage));
             DeucarianControlCenterRegistry.RegisterCardProvider(new Provider());
         }
 
@@ -62,7 +62,7 @@ namespace Deucarian.Attacks.Editor
                         new DeucarianControlCenterAction(
                             "open-authoring",
                             "Open Authoring",
-                            GameContentAuthoringWindow.Open),
+                            GameContentAuthoringWindow.Open, navigationToolId: DeucarianToolIds.GameContentAuthoring),
                         new DeucarianControlCenterAction(
                             "migrate-wave-entry-ids",
                             "Migrate Wave Entry IDs",
