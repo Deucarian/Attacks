@@ -18,7 +18,7 @@ namespace Deucarian.Attacks.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("Enemies", DeucarianEditorStyles.SectionTitle);
+                DeucarianEditorTextGUI.LabelField("Enemies", DeucarianEditorStyles.SectionTitle);
                 GUILayout.FlexibleSpace();
                 if (DeucarianEditorMiniToolbar.Button("Refresh", true, GUILayout.Width(62f), GUILayout.Height(22f)))
                     context.RefreshLibrary();
@@ -48,7 +48,7 @@ namespace Deucarian.Attacks.Editor
             }
 
             if (shown == 0)
-                EditorGUILayout.LabelField(items.Count == 0 ? "No authored enemies found." : "No enemies match the current search.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField(items.Count == 0 ? "No authored enemies found." : "No enemies match the current search.", DeucarianEditorStyles.MutedLabel);
             EditorGUILayout.EndScrollView();
         }
 

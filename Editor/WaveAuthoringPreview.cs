@@ -27,7 +27,7 @@ namespace Deucarian.Attacks.Editor
             WaveAuthoringState source = state.Creating ? draft : state.EditingState;
             if (source == null)
             {
-                EditorGUILayout.LabelField("Select a wave to preview.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("Select a wave to preview.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
 

@@ -65,7 +65,7 @@ namespace Deucarian.Attacks.Editor
         {
             IReadOnlyList<string> lines = WaveDefinitionAssetCreator.GetPreviewLines(state);
             for (int i = 0; i < lines.Count; i++)
-                EditorGUILayout.LabelField(lines[i], DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField(lines[i], DeucarianEditorStyles.MutedLabel);
 
             WaveAuthoringFields.DrawSummaryRows(
                 WaveAuthoringSummary.Row("Readiness", new GameContentAuthoringValidationSummary(validation).ReadinessLabel),

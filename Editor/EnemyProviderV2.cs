@@ -57,7 +57,7 @@ namespace Deucarian.Attacks.Editor
         {
             if (context.SelectedItem == null)
             {
-                EditorGUILayout.LabelField("Select an enemy to edit.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("Select an enemy to edit.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
 
@@ -65,7 +65,7 @@ namespace Deucarian.Attacks.Editor
             EnemyAuthoringState selectedState = state.EditingState;
             if (selectedAsset == null || selectedState == null)
             {
-                EditorGUILayout.LabelField("Selected item is not an enemy asset.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("Selected item is not an enemy asset.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
 
@@ -79,8 +79,8 @@ namespace Deucarian.Attacks.Editor
             {
                 using (new EditorGUILayout.VerticalScope())
                 {
-                    EditorGUILayout.LabelField(selectedState.DisplayName, EnemyAuthoringFields.HeaderStyle);
-                    EditorGUILayout.LabelField(selectedState.EnemyId, DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField(selectedState.DisplayName, EnemyAuthoringFields.HeaderStyle);
+                    DeucarianEditorTextGUI.LabelField(selectedState.EnemyId, DeucarianEditorStyles.MutedLabel);
                 }
 
                 GUILayout.FlexibleSpace();
