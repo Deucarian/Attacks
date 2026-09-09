@@ -189,11 +189,11 @@ namespace Deucarian.Attacks.Editor
         {
             if (!GameContentRecordProjectionRegistry<AttackContentRecordProjection>.TryProject(record, out AttackContentRecordProjection projection))
             {
-                EditorGUILayout.HelpBox("No installed adapter exposes common Attack fields for this record. Source metadata remains available below.", MessageType.Warning);
+                DeucarianEditorTextGUI.HelpBox("No installed adapter exposes common Attack fields for this record. Source metadata remains available below.", MessageType.Warning);
                 return;
             }
 
-            EditorGUILayout.LabelField("Attack", DeucarianEditorStyles.SectionTitle);
+            DeucarianEditorTextGUI.LabelField("Attack", DeucarianEditorStyles.SectionTitle);
             Row("Damage", projection.Damage);
             Row("Cooldown", projection.CooldownSeconds, "s");
             Row("Range", projection.Range);
@@ -211,10 +211,10 @@ namespace Deucarian.Attacks.Editor
 
         private static void DrawPreview(GameContentRecordDescriptor record)
         {
-            EditorGUILayout.LabelField(record.DisplayName, DeucarianEditorStyles.SectionTitle);
+            DeucarianEditorTextGUI.LabelField(record.DisplayName, DeucarianEditorStyles.SectionTitle);
             if (!GameContentRecordProjectionRegistry<AttackContentRecordProjection>.TryProject(record, out AttackContentRecordProjection projection))
             {
-                EditorGUILayout.HelpBox("Preview adapter unavailable.", MessageType.Warning);
+                DeucarianEditorTextGUI.HelpBox("Preview adapter unavailable.", MessageType.Warning);
                 return;
             }
 
@@ -224,7 +224,7 @@ namespace Deucarian.Attacks.Editor
             Row("Range", projection.Range);
             GameContentRecordLensBrowser.DrawRow("Delivery", projection.DeliveryMode);
             GameContentRecordLensBrowser.DrawRow("Payload", Empty(projection.PayloadRecordId));
-            EditorGUILayout.HelpBox(
+            DeucarianEditorTextGUI.HelpBox(
                 string.IsNullOrWhiteSpace(projection.PresentationSummary)
                     ? "No prefab or VFX is assigned by this read-only source. The preview uses authored numeric values."
                     : projection.PresentationSummary,
@@ -261,11 +261,11 @@ namespace Deucarian.Attacks.Editor
         {
             if (!GameContentRecordProjectionRegistry<EnemyContentRecordProjection>.TryProject(record, out EnemyContentRecordProjection projection))
             {
-                EditorGUILayout.HelpBox("No installed adapter exposes common Enemy fields for this record.", MessageType.Warning);
+                DeucarianEditorTextGUI.HelpBox("No installed adapter exposes common Enemy fields for this record.", MessageType.Warning);
                 return;
             }
 
-            EditorGUILayout.LabelField("Enemy", DeucarianEditorStyles.SectionTitle);
+            DeucarianEditorTextGUI.LabelField("Enemy", DeucarianEditorStyles.SectionTitle);
             GameContentRecordLensBrowser.DrawRow("Role", projection.Role);
             Row("Health", projection.Health);
             Row("Move Speed", projection.MoveSpeed);
@@ -280,17 +280,17 @@ namespace Deucarian.Attacks.Editor
             GameContentRecordLensBrowser.DrawRow("Presentation", Empty(projection.PresentationSummary));
             if (!string.IsNullOrWhiteSpace(projection.GameSpecificSummary))
             {
-                EditorGUILayout.LabelField("Game-Specific", DeucarianEditorStyles.SectionTitle);
-                EditorGUILayout.LabelField(projection.GameSpecificSummary, EditorStyles.wordWrappedLabel);
+                DeucarianEditorTextGUI.LabelField("Game-Specific", DeucarianEditorStyles.SectionTitle);
+                DeucarianEditorTextGUI.LabelField(projection.GameSpecificSummary, DeucarianEditorWorkbenchGUI.LabelStyle);
             }
         }
 
         private static void DrawPreview(GameContentRecordDescriptor record)
         {
-            EditorGUILayout.LabelField(record.DisplayName, DeucarianEditorStyles.SectionTitle);
+            DeucarianEditorTextGUI.LabelField(record.DisplayName, DeucarianEditorStyles.SectionTitle);
             if (!GameContentRecordProjectionRegistry<EnemyContentRecordProjection>.TryProject(record, out EnemyContentRecordProjection projection))
             {
-                EditorGUILayout.HelpBox("Preview adapter unavailable.", MessageType.Warning);
+                DeucarianEditorTextGUI.HelpBox("Preview adapter unavailable.", MessageType.Warning);
                 return;
             }
 
@@ -300,7 +300,7 @@ namespace Deucarian.Attacks.Editor
             Row("Speed", projection.MoveSpeed);
             Row("Contact Damage", projection.ContactDamage);
             GameContentRecordLensBrowser.DrawRow("Threat UI", projection.LifeBarBehavior + " / " + projection.OffscreenMarkerBehavior);
-            EditorGUILayout.HelpBox(
+            DeucarianEditorTextGUI.HelpBox(
                 string.IsNullOrWhiteSpace(projection.PresentationSummary)
                     ? "No prefab is assigned by this read-only source. The preview uses authored combat stats."
                     : projection.PresentationSummary,
@@ -337,11 +337,11 @@ namespace Deucarian.Attacks.Editor
         {
             if (!GameContentRecordProjectionRegistry<EncounterContentRecordProjection>.TryProject(record, out EncounterContentRecordProjection projection))
             {
-                EditorGUILayout.HelpBox("No installed adapter exposes common Encounter fields for this record.", MessageType.Warning);
+                DeucarianEditorTextGUI.HelpBox("No installed adapter exposes common Encounter fields for this record.", MessageType.Warning);
                 return;
             }
 
-            EditorGUILayout.LabelField("Wave / Encounter", DeucarianEditorStyles.SectionTitle);
+            DeucarianEditorTextGUI.LabelField("Wave / Encounter", DeucarianEditorStyles.SectionTitle);
             GameContentRecordLensBrowser.DrawRow("Kind", projection.EncounterKind);
             Row("Duration", projection.DurationSeconds, "s");
             Row("Victory", projection.VictoryTimeSeconds, "s");
@@ -353,10 +353,10 @@ namespace Deucarian.Attacks.Editor
 
         private static void DrawPreview(GameContentRecordDescriptor record)
         {
-            EditorGUILayout.LabelField(record.DisplayName, DeucarianEditorStyles.SectionTitle);
+            DeucarianEditorTextGUI.LabelField(record.DisplayName, DeucarianEditorStyles.SectionTitle);
             if (!GameContentRecordProjectionRegistry<EncounterContentRecordProjection>.TryProject(record, out EncounterContentRecordProjection projection))
             {
-                EditorGUILayout.HelpBox("Timeline adapter unavailable.", MessageType.Warning);
+                DeucarianEditorTextGUI.HelpBox("Timeline adapter unavailable.", MessageType.Warning);
                 return;
             }
 

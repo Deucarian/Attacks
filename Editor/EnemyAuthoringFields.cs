@@ -21,8 +21,8 @@ namespace Deucarian.Attacks.Editor
                 state.Icon = context.Authoring.DrawObjectField("Icon", state.Icon);
                 state.Role = context.Authoring.DrawEnumPopup("Role", state.Role);
                 state.TagsCsv = context.Authoring.DrawTextField("Tags", state.TagsCsv);
-                DeucarianEditorFieldRow.Draw("Summary", () => EditorGUILayout.LabelField(EnemyAuthoringSummary.BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
-                DeucarianEditorFieldRow.Draw("Used By", () => EditorGUILayout.LabelField(EnemyAuthoringSummary.BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Summary", () => DeucarianEditorTextGUI.LabelField(EnemyAuthoringSummary.BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Used By", () => DeucarianEditorTextGUI.LabelField(EnemyAuthoringSummary.BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
             });
         }
 
@@ -60,7 +60,7 @@ namespace Deucarian.Attacks.Editor
             {
                 if (item.ReverseReferences == null || item.ReverseReferences.Count == 0)
                 {
-                    EditorGUILayout.LabelField("No known waves, sets, or packs reference this enemy.", DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField("No known waves, sets, or packs reference this enemy.", DeucarianEditorStyles.MutedLabel);
                     return;
                 }
 
@@ -69,7 +69,7 @@ namespace Deucarian.Attacks.Editor
                     GameContentLibraryReference reference = item.ReverseReferences[i];
                     if (reference == null || reference.Target == null)
                         continue;
-                    EditorGUILayout.LabelField(reference.Target.DisplayName + "  (" + reference.Target.Category + ")", DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField(reference.Target.DisplayName + "  (" + reference.Target.Category + ")", DeucarianEditorStyles.MutedLabel);
                 }
             });
         }
@@ -82,7 +82,7 @@ namespace Deucarian.Attacks.Editor
                 DrawValue("Folder", item.Folder);
                 DrawValue("Stable ID", state.EnemyId);
                 DrawValue("Tags", state.TagsCsv);
-                if (GUILayout.Button("Copy Report", DeucarianEditorButtons.SecondaryStyle, GUILayout.Height(24f)))
+                if (DeucarianEditorActionGUI.Button("Copy Report"))
                     EditorGUIUtility.systemCopyBuffer = EnemyAuthoringSummary.BuildAdvancedReport(item, state);
             }, true);
 
@@ -139,10 +139,10 @@ namespace Deucarian.Attacks.Editor
 
         private static void DrawValue(string label, string value)
         {
-            DeucarianEditorFieldRow.Draw(label, () => EditorGUILayout.LabelField(value ?? string.Empty, DeucarianEditorStyles.MutedLabel));
+            DeucarianEditorFieldRow.Draw(label, () => DeucarianEditorTextGUI.LabelField(value ?? string.Empty, DeucarianEditorStyles.MutedLabel));
         }
 
-        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => EditorStyles.boldLabel);
+        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => DeucarianEditorWorkbenchGUI.BoldLabelStyle);
 
         internal static GUIStyle HeaderStyle => headerStyle.Value;
 

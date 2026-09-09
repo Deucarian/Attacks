@@ -30,7 +30,7 @@ namespace Deucarian.Attacks.Editor
                 : state.EditingState ?? AttackGameContentPreviewSelection.ResolveAttackState(context.Preview, draft);
             if (source == null)
             {
-                EditorGUILayout.LabelField("Preview unavailable.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("Preview unavailable.", DeucarianEditorStyles.MutedLabel);
                 EditorGUILayout.EndScrollView();
                 return;
             }
@@ -98,7 +98,7 @@ namespace Deucarian.Attacks.Editor
             }
 
             if (!string.IsNullOrWhiteSpace(state.PreviewStatus))
-                EditorGUILayout.LabelField(state.PreviewStatus, DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField(state.PreviewStatus, DeucarianEditorStyles.MutedLabel);
 
             if (state.PreviewPlaying)
                 context.RequestRepaint();
@@ -199,8 +199,8 @@ namespace Deucarian.Attacks.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("Source", GUILayout.Width(48f));
-                state.PreviewSourceContextIndex = EditorGUILayout.Popup(
+                DeucarianEditorTextGUI.LabelField("Source", GUILayout.Width(48f));
+                state.PreviewSourceContextIndex = DeucarianEditorInputGUI.Popup(
                     state.PreviewSourceContextIndex,
                     AttackGameContentPreviewContext.BuildLabels(sourceOptions),
                     GUILayout.ExpandWidth(true));
@@ -208,8 +208,8 @@ namespace Deucarian.Attacks.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("Target", GUILayout.Width(48f));
-                state.PreviewTargetContextIndex = EditorGUILayout.Popup(
+                DeucarianEditorTextGUI.LabelField("Target", GUILayout.Width(48f));
+                state.PreviewTargetContextIndex = DeucarianEditorInputGUI.Popup(
                     state.PreviewTargetContextIndex,
                     AttackGameContentPreviewContext.BuildLabels(targetOptions),
                     GUILayout.ExpandWidth(true));
