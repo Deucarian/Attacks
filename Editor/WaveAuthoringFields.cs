@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Threading;
 using Deucarian.Attacks.Authoring;
 using Deucarian.Editor;
 using Deucarian.GameContentAuthoring.Editor;
@@ -195,23 +196,21 @@ namespace Deucarian.Attacks.Editor
             return options[Mathf.Clamp(index, 0, options.Count - 1)];
         }
 
-        private static GUIStyle headerStyle;
+        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => EditorStyles.boldLabel);
 
-        private static GUIStyle HeaderStyle
+        private static GUIStyle HeaderStyle => headerStyle.Value;
+
+        internal static Lazy<GUIStyle> CreateHeaderStyleCache(Func<GUIStyle> source)
         {
-            get
+            return new Lazy<GUIStyle>(() =>
             {
-                if (headerStyle == null)
+                var style = new GUIStyle(source())
                 {
-                    headerStyle = new GUIStyle(EditorStyles.boldLabel)
-                    {
-                        fontSize = 14
-                    };
-                    headerStyle.normal.textColor = DeucarianEditorTheme.Text;
-                }
-
-                return headerStyle;
-            }
+                    fontSize = 14
+                };
+                style.normal.textColor = DeucarianEditorTheme.Text;
+                return style;
+            }, LazyThreadSafetyMode.PublicationOnly);
         }
     }
 }
