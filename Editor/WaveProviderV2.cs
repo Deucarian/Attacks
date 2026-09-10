@@ -60,7 +60,7 @@ namespace Deucarian.Attacks.Editor
             WaveDefinitionAsset asset = context.SelectedItem == null ? null : context.SelectedItem.Asset as WaveDefinitionAsset;
             if (asset == null || state.EditingState == null || state.EditingContext == null)
             {
-                EditorGUILayout.LabelField("Select a wave to edit.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("Select a wave to edit.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
 

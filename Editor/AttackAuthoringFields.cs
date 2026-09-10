@@ -20,8 +20,8 @@ namespace Deucarian.Attacks.Editor
                 state.DisplayName = context.Authoring.DrawTextField("Display Name", state.DisplayName);
                 state.Icon = context.Authoring.DrawObjectField("Icon", state.Icon);
                 state.TagsCsv = context.Authoring.DrawTextField("Tags", state.TagsCsv);
-                DeucarianEditorFieldRow.Draw("Summary", () => EditorGUILayout.LabelField(AttackAuthoringSummary.BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
-                DeucarianEditorFieldRow.Draw("Used By", () => EditorGUILayout.LabelField(AttackAuthoringSummary.BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Summary", () => DeucarianEditorTextGUI.LabelField(AttackAuthoringSummary.BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Used By", () => DeucarianEditorTextGUI.LabelField(AttackAuthoringSummary.BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
             });
         }
 
@@ -29,11 +29,11 @@ namespace Deucarian.Attacks.Editor
         {
             DeucarianEditorCards.DrawInlineCard(() =>
             {
-                DeucarianEditorFieldRow.Draw("Display Name", () => EditorGUILayout.LabelField(state.DisplayName));
-                DeucarianEditorFieldRow.Draw("ID", () => EditorGUILayout.LabelField(state.AttackId));
-                DeucarianEditorFieldRow.Draw("Type", () => EditorGUILayout.LabelField(AttackAuthoringSummary.GetTypeLabel(state)));
-                DeucarianEditorFieldRow.Draw("Summary", () => EditorGUILayout.LabelField(AttackAuthoringSummary.BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
-                DeucarianEditorFieldRow.Draw("Used By", () => EditorGUILayout.LabelField(AttackAuthoringSummary.BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Display Name", () => DeucarianEditorTextGUI.LabelField(state.DisplayName));
+                DeucarianEditorFieldRow.Draw("ID", () => DeucarianEditorTextGUI.LabelField(state.AttackId));
+                DeucarianEditorFieldRow.Draw("Type", () => DeucarianEditorTextGUI.LabelField(AttackAuthoringSummary.GetTypeLabel(state)));
+                DeucarianEditorFieldRow.Draw("Summary", () => DeucarianEditorTextGUI.LabelField(AttackAuthoringSummary.BuildHumanSummary(state), DeucarianEditorStyles.MutedLabel));
+                DeucarianEditorFieldRow.Draw("Used By", () => DeucarianEditorTextGUI.LabelField(AttackAuthoringSummary.BuildUsedBySummary(item), DeucarianEditorStyles.MutedLabel));
             });
         }
 
@@ -113,7 +113,7 @@ namespace Deucarian.Attacks.Editor
             {
                 if (item.ReverseReferences == null || item.ReverseReferences.Count == 0)
                 {
-                    EditorGUILayout.LabelField("No known weapons, upgrades, sets, or packs reference this attack.", DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField("No known weapons, upgrades, sets, or packs reference this attack.", DeucarianEditorStyles.MutedLabel);
                     return;
                 }
 
@@ -122,7 +122,7 @@ namespace Deucarian.Attacks.Editor
                     GameContentLibraryReference reference = item.ReverseReferences[i];
                     if (reference == null || reference.Target == null)
                         continue;
-                    EditorGUILayout.LabelField(reference.Target.DisplayName + "  (" + reference.Target.Category + ")", DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField(reference.Target.DisplayName + "  (" + reference.Target.Category + ")", DeucarianEditorStyles.MutedLabel);
                 }
             });
         }
@@ -135,7 +135,7 @@ namespace Deucarian.Attacks.Editor
                 DrawValue("Folder", item.Folder);
                 DrawValue("Stable ID", state.AttackId);
                 DrawValue("Tags", state.TagsCsv);
-                if (GUILayout.Button("Copy Report", DeucarianEditorButtons.SecondaryStyle, GUILayout.Height(24f)))
+                if (DeucarianEditorActionGUI.Button("Copy Report"))
                     EditorGUIUtility.systemCopyBuffer = AttackAuthoringSummary.BuildAdvancedReport(item, state);
             }, true);
 
@@ -254,10 +254,10 @@ namespace Deucarian.Attacks.Editor
 
         private static void DrawValue(string label, string value)
         {
-            DeucarianEditorFieldRow.Draw(label, () => EditorGUILayout.LabelField(value ?? string.Empty, DeucarianEditorStyles.MutedLabel));
+            DeucarianEditorFieldRow.Draw(label, () => DeucarianEditorTextGUI.LabelField(value ?? string.Empty, DeucarianEditorStyles.MutedLabel));
         }
 
-        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => EditorStyles.boldLabel);
+        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => DeucarianEditorWorkbenchGUI.BoldLabelStyle);
 
         internal static GUIStyle HeaderStyle => headerStyle.Value;
 
