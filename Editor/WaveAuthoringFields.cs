@@ -25,9 +25,9 @@ namespace Deucarian.Attacks.Editor
 
         internal static void DrawHeader(string title, string subtitle, IReadOnlyList<DeucarianEditorStatusChip> chips)
         {
-            EditorGUILayout.LabelField(string.IsNullOrWhiteSpace(title) ? "Wave" : title, HeaderStyle);
+            DeucarianEditorTextGUI.LabelField(string.IsNullOrWhiteSpace(title) ? "Wave" : title, HeaderStyle);
             if (!string.IsNullOrWhiteSpace(subtitle))
-                EditorGUILayout.LabelField(subtitle, DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField(subtitle, DeucarianEditorStyles.MutedLabel);
             DeucarianEditorStatusChipRow.Draw(chips);
         }
 
@@ -68,7 +68,7 @@ namespace Deucarian.Attacks.Editor
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField("Entry " + (index + 1).ToString(CultureInfo.InvariantCulture), DeucarianEditorStyles.SectionTitle);
+                    DeucarianEditorTextGUI.LabelField("Entry " + (index + 1).ToString(CultureInfo.InvariantCulture), DeucarianEditorStyles.SectionTitle);
                     GUILayout.FlexibleSpace();
                     if (DeucarianEditorMiniToolbar.Button("Up", index > 0, GUILayout.Width(38f), GUILayout.Height(22f)))
                         moveUp = true;
@@ -143,13 +143,13 @@ namespace Deucarian.Attacks.Editor
         {
             if (item == null)
             {
-                EditorGUILayout.LabelField("No references for a new draft.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("No references for a new draft.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
 
             if (item.ReverseReferences.Count == 0)
             {
-                EditorGUILayout.LabelField("No authored content references this wave.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("No authored content references this wave.", DeucarianEditorStyles.MutedLabel);
                 return;
             }
 
@@ -160,8 +160,8 @@ namespace Deucarian.Attacks.Editor
                 string detail = reference.Target == null ? reference.PropertyPath : reference.Target.Category + " - " + reference.PropertyPath;
                 DeucarianEditorCards.DrawInlineCard(() =>
                 {
-                    EditorGUILayout.LabelField(label, DeucarianEditorStyles.SectionTitle);
-                    EditorGUILayout.LabelField(detail, DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField(label, DeucarianEditorStyles.SectionTitle);
+                    DeucarianEditorTextGUI.LabelField(detail, DeucarianEditorStyles.MutedLabel);
                 });
             }
         }
@@ -192,11 +192,11 @@ namespace Deucarian.Attacks.Editor
                 options.Add(current);
 
             int index = Mathf.Max(0, options.IndexOf(current));
-            DeucarianEditorFieldRow.Draw(label, () => index = EditorGUILayout.Popup(index, options.ToArray()));
+            DeucarianEditorFieldRow.Draw(label, () => index = DeucarianEditorInputGUI.Popup(index, options.ToArray()));
             return options[Mathf.Clamp(index, 0, options.Count - 1)];
         }
 
-        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => EditorStyles.boldLabel);
+        private static readonly Lazy<GUIStyle> headerStyle = CreateHeaderStyleCache(() => DeucarianEditorWorkbenchGUI.BoldLabelStyle);
 
         private static GUIStyle HeaderStyle => headerStyle.Value;
 

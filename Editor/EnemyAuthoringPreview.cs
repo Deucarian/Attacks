@@ -30,7 +30,7 @@ namespace Deucarian.Attacks.Editor
                 : state.EditingState ?? AttackGameContentPreviewSelection.ResolveEnemyState(context.Preview, draft);
             if (source == null)
             {
-                EditorGUILayout.LabelField("Preview unavailable.", DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField("Preview unavailable.", DeucarianEditorStyles.MutedLabel);
                 EditorGUILayout.EndScrollView();
                 return;
             }
@@ -73,7 +73,7 @@ namespace Deucarian.Attacks.Editor
                 });
 
             if (!string.IsNullOrWhiteSpace(state.PreviewStatus))
-                EditorGUILayout.LabelField(state.PreviewStatus, DeucarianEditorStyles.MutedLabel);
+                DeucarianEditorTextGUI.LabelField(state.PreviewStatus, DeucarianEditorStyles.MutedLabel);
 
             if (state.PreviewPlaying)
                 context.RequestRepaint();
@@ -157,8 +157,8 @@ namespace Deucarian.Attacks.Editor
 
         private static void DrawPreviewContext(EnemyAuthoringState source, EnemyProviderV2PreviewScope scope)
         {
-            DeucarianEditorFieldRow.Draw("Source", () => EditorGUILayout.LabelField(scope == EnemyProviderV2PreviewScope.Draft ? "New enemy draft" : "Selected enemy asset", DeucarianEditorStyles.MutedLabel));
-            DeucarianEditorFieldRow.Draw("Target", () => EditorGUILayout.LabelField(EnemyAuthoringSummary.GetRoleLabel(source.Role) + " - " + source.EnemyId, DeucarianEditorStyles.MutedLabel));
+            DeucarianEditorFieldRow.Draw("Source", () => DeucarianEditorTextGUI.LabelField(scope == EnemyProviderV2PreviewScope.Draft ? "New enemy draft" : "Selected enemy asset", DeucarianEditorStyles.MutedLabel));
+            DeucarianEditorFieldRow.Draw("Target", () => DeucarianEditorTextGUI.LabelField(EnemyAuthoringSummary.GetRoleLabel(source.Role) + " - " + source.EnemyId, DeucarianEditorStyles.MutedLabel));
         }
 
         internal static GameContentAuthoringActionPreview BuildEnemyActionPreview(EnemyAuthoringState state, bool playing, double startTime)

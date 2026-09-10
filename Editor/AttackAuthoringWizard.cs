@@ -25,7 +25,7 @@ namespace Deucarian.Attacks.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("New Attack", AttackAuthoringFields.HeaderStyle);
+                DeucarianEditorTextGUI.LabelField("New Attack", AttackAuthoringFields.HeaderStyle);
                 GUILayout.FlexibleSpace();
                 if (DeucarianEditorMiniToolbar.Button("Browse", context.AuthoredItems.Count > 0, GUILayout.Width(60f), GUILayout.Height(22f)))
                 {
@@ -76,7 +76,7 @@ namespace Deucarian.Attacks.Editor
 
                 string[] lines = AttackRecipeAssetCreator.GetPreviewLines(draft) as string[] ?? new List<string>(AttackRecipeAssetCreator.GetPreviewLines(draft)).ToArray();
                 for (int i = 0; i < lines.Length; i++)
-                    EditorGUILayout.LabelField(lines[i], DeucarianEditorStyles.MutedLabel);
+                    DeucarianEditorTextGUI.LabelField(lines[i], DeucarianEditorStyles.MutedLabel);
 
                 if (validation.Issues.Count > 0)
                 {
@@ -90,7 +90,7 @@ namespace Deucarian.Attacks.Editor
                                 ? DeucarianEditorStatus.Warning
                                 : DeucarianEditorStatus.Info;
                         DeucarianEditorStatusBadge.Draw(status.ToString(), status, GUILayout.Width(72f));
-                        EditorGUILayout.LabelField(issue.Path + ": " + issue.Message, DeucarianEditorStyles.MutedLabel);
+                        DeucarianEditorTextGUI.LabelField(issue.Path + ": " + issue.Message, DeucarianEditorStyles.MutedLabel);
                     }
                 }
 

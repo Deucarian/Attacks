@@ -1,3 +1,4 @@
+using Deucarian.Editor;
 using System;
 using System.Collections.Generic;
 using Deucarian.Attacks.Authoring;
@@ -153,7 +154,7 @@ namespace Deucarian.Attacks.Editor
             context.DrawSection("Preview", () =>
             {
                 foreach (string line in AttackRecipeAssetCreator.GetPreviewLines(_state))
-                    EditorGUILayout.LabelField(line, context.MutedStyle);
+                    DeucarianEditorTextGUI.LabelField(line, context.MutedStyle);
                 GUILayout.Space(6f);
                 context.DrawValidation(report, "Ready to create one root AttackDefinition asset with focused sub-assets.");
                 GUILayout.Space(8f);
@@ -253,7 +254,7 @@ namespace Deucarian.Attacks.Editor
             context.DrawSection("Preview", () =>
             {
                 foreach (string line in EnemyDefinitionAssetCreator.GetPreviewLines(_state))
-                    EditorGUILayout.LabelField(line, context.MutedStyle);
+                    DeucarianEditorTextGUI.LabelField(line, context.MutedStyle);
                 GUILayout.Space(6f);
                 context.DrawValidation(report, "Ready to create one root EnemyDefinition asset with stats and presentation sub-assets.");
                 GUILayout.Space(8f);
@@ -333,7 +334,7 @@ namespace Deucarian.Attacks.Editor
             context.DrawSection("Preview", () =>
             {
                 foreach (string line in WaveDefinitionAssetCreator.GetPreviewLines(_state))
-                    EditorGUILayout.LabelField(line, context.MutedStyle);
+                    DeucarianEditorTextGUI.LabelField(line, context.MutedStyle);
                 GUILayout.Space(6f);
                 context.DrawValidation(report, "Ready to create one root WaveDefinition asset with schedule and entries sub-assets.");
                 GUILayout.Space(8f);
@@ -351,7 +352,7 @@ namespace Deucarian.Attacks.Editor
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField("Entry " + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), context.SectionTitleStyle);
+                    DeucarianEditorTextGUI.LabelField("Entry " + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), context.SectionTitleStyle);
                     if (context.DrawSecondaryButton("Remove", _state.Entries.Count > 1, GUILayout.Width(72f)))
                     {
                         remove = true;
