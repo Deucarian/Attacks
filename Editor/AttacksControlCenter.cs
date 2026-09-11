@@ -21,7 +21,8 @@ namespace Deucarian.Attacks.Editor
                 GameContentAuthoringWindow.Open,
                 PackageId,
                 searchTerms: new[] { "attack", "enemy", "wave", "migration" },
-                order: 120, createPage: GameContentAuthoringWindow.CreatePage));
+                order: 120, createPage: () => GameContentAuthoringWindow.CreatePage(ToolId,
+                    "Attack content", "Shape attacks, enemies and waves.", "com.deucarian.attacks.")));
             DeucarianControlCenterRegistry.RegisterCardProvider(new Provider());
         }
 

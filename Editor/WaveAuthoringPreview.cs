@@ -113,7 +113,7 @@ namespace Deucarian.Attacks.Editor
             }
         }
 
-        private static GameContentAuthoringObjectPreviewOptions BuildPreviewOptions(WaveAuthoringState source, WaveProviderV2State state)
+        internal static GameContentAuthoringObjectPreviewOptions BuildPreviewOptions(WaveAuthoringState source, WaveProviderV2State state)
         {
             var preview = new GameContentAuthoringActionPreview
             {
@@ -167,7 +167,7 @@ namespace Deucarian.Attacks.Editor
             return rows;
         }
 
-        private static UnityEngine.Object GetPrimaryPreviewAsset(WaveAuthoringState state)
+        internal static UnityEngine.Object GetPrimaryPreviewAsset(WaveAuthoringState state)
         {
             if (state == null)
                 return null;
