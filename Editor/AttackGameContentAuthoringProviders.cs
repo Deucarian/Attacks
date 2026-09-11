@@ -19,8 +19,12 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider
+    internal sealed class AttackAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider, IGameContentToolkitAuthoringProvider, IGameContentToolkitRecordProvider
     {
+        public UnityEngine.UIElements.VisualElement CreateEditor(GameContentAuthoringSurfaceContext context) => AttackToolkitAuthoring.Create(context);
+        public UnityEngine.UIElements.VisualElement CreateRecordDetails(GameContentRecordDescriptor record) => AttackRecordToolkit.Attack(record);
+        public string RecordIconId => "swords";
+
         private readonly AttackAuthoringState _state = new AttackAuthoringState();
         private readonly AttackGameContentPreviewController _preview = new AttackGameContentPreviewController();
         private readonly AttackProviderV2State _v2State = new AttackProviderV2State();
@@ -165,8 +169,12 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider
+    internal sealed class EnemyAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider, IGameContentToolkitAuthoringProvider, IGameContentToolkitRecordProvider
     {
+        public UnityEngine.UIElements.VisualElement CreateEditor(GameContentAuthoringSurfaceContext context) => EnemyToolkitAuthoring.Create(context);
+        public UnityEngine.UIElements.VisualElement CreateRecordDetails(GameContentRecordDescriptor record) => AttackRecordToolkit.Enemy(record);
+        public string RecordIconId => "skull";
+
         private readonly EnemyAuthoringState _state = new EnemyAuthoringState();
         private readonly EnemyGameContentPreviewController _preview = new EnemyGameContentPreviewController();
         private readonly EnemyProviderV2State _v2State = new EnemyProviderV2State();
@@ -265,8 +273,12 @@ namespace Deucarian.Attacks.Editor
         }
     }
 
-    internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider
+    internal sealed class WaveAuthoringProvider : IGameContentAuthoringProvider, IGameContentAuthoringSurfaceProvider, IGameContentAuthoringLensProvider, IGameContentToolkitAuthoringProvider, IGameContentToolkitRecordProvider
     {
+        public UnityEngine.UIElements.VisualElement CreateEditor(GameContentAuthoringSurfaceContext context) => WaveToolkitAuthoring.Create(context);
+        public UnityEngine.UIElements.VisualElement CreateRecordDetails(GameContentRecordDescriptor record) => AttackRecordToolkit.Wave(record);
+        public string RecordIconId => "users-round";
+
         private readonly WaveAuthoringState _state = new WaveAuthoringState();
         private readonly WaveGameContentPreviewController _preview = new WaveGameContentPreviewController();
         private readonly WaveProviderV2State _v2State = new WaveProviderV2State();
