@@ -4,6 +4,50 @@
 
 Attacks answers who can attack, when they can attack, which supplied candidate should be attacked, and what Combat request should be produced. It does not query scenes, move projectiles, equip weapons, render VFX/audio/UI, grant rewards, save files, place towers, or depend on Defense Games.
 
+## Generated keys in code and the Inspector
+
+Project attack definitions generate named, typed C# keys automatically. A `.g.cs` file is generated C# that Unity compiles normally. The generator runs in the editor; the player uses the compiled key code.
+
+1. Create or edit an `AttackDefinitionAsset` under your project's `Assets` folder using the existing authoring workflow. Keep its stable ID unique and give it a display name, for example `Slash`.
+2. Let Unity finish importing and compiling. The editor produces `Assets/DeucarianGeneratedKeys/AttackKey/ProjectAttacks.g.cs` and its generated assembly definition.
+3. Configure the runtime owner once, then use the generated key in code or select the same definition from a serialized field dropdown.
+
+Configure AttackHost with the existing AttackRuntime, registered source and CombatScope. The attack must be in the runtime catalog, and the target handle must come from that combat scope. The combat owner continues to apply the returned intent/result.
+
+After creating the `Slash` definition, a caller can use:
+
+```csharp
+using Deucarian.Attacks;
+using Deucarian.Attacks.Authoring;
+using Deucarian.Combat;
+using Deucarian.Generated;
+using UnityEngine;
+
+public sealed class GeneratedKeyExample : MonoBehaviour
+{
+    [SerializeField] private AttackHost attacks;
+    [SerializeField] private AttackKey definition = ProjectAttacks.Slash;
+
+    public AttackResult Request(CombatantHandle target) => attacks.Request(definition, target);
+}
+```
+
+The `definition` field exposes existing `AttackKey` choices in the Inspector. A direct code call uses the same typed value:
+
+```csharp
+attacks.Request(ProjectAttacks.Slash, target);
+```
+
+The caller retains a typed identity, without a reference to the definition asset. Misspelled generated members and keys from another domain fail compilation. A valid key does not configure a scene or add the definition to its runtime catalog; follow [Simple usage](Documentation~/SimpleUsage.md) for scope setup.
+
+**Updating definitions:** edit the source asset. Changing its display name changes the generated member after regeneration, so update old code references. Existing serialized selections retain their stable ID. Deleting a definition removes its member and marks serialized selections as missing. Duplicate IDs or generated names must be corrected at the source. Renaming only the asset file leaves its display name and ID unchanged.
+
+**Assemblies and source control:** callers with their own asmdef reference `Deucarian.GeneratedKeys.AttackKey` in addition to the package assemblies they use; `Assembly-CSharp` sees it automatically. Commit source assets, generated `.g.cs`, generated `.asmdef` files and their `.meta` files together. Edit source definitions instead of generated files.
+
+**If a key is missing or stale:** reimport a source definition and let Unity finish compilation. Check that the asset is under `Assets`, its name/ID are valid and automatic generation has not been disabled by a test harness. Inspector and build validation report missing selections and stale generated output. Custom bundle/content pipelines should invoke the shared validator for their additional content.
+
+[Shared generation, serialization and build-validation guide](https://github.com/Deucarian/Editor/blob/develop/Documentation~/TypedKeys.md).
+
 ## Game Content Authoring
 
 The package also includes a Unity-facing authoring layer in `Deucarian.Attacks.Authoring` and editor-only Attack, Enemy, and Wave providers for `com.deucarian.game-content-authoring`. Open Deucarian Control Center > Authoring or `Tools/Deucarian/Authoring/Game Content...`; the shared window comes from `com.deucarian.game-content-authoring`, while domain-specific creation and migration logic stays in Attacks.
