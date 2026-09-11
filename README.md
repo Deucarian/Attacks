@@ -123,3 +123,7 @@ git diff --check
 ## License
 
 MIT. See `LICENSE.md`.
+
+## Simple typed usage
+
+See [Simple usage](Documentation~/SimpleUsage.md) for the short caller, Inspector selections and one-time scoped setup.

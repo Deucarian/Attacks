@@ -12,16 +12,23 @@
     "Deucarian.DefenseGames",
     "Deucarian.Encounters",
     "Deucarian.WorldSpawning",
-    "Deucarian.WorldNavigation"
+    "Deucarian.WorldNavigation",
+    "Deucarian.Diagnostics"
   ],
-  "includePlatforms": [ "Editor" ],
+  "includePlatforms": [
+    "Editor"
+  ],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
   "autoReferenced": false,
-  "defineConstraints": [ "UNITY_INCLUDE_TESTS" ],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
   "versionDefines": [],
-  "optionalUnityReferences": [ "TestAssemblies" ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
   "noEngineReferences": false
 }
