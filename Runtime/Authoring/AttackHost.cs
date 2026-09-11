@@ -1,6 +1,7 @@
 using Deucarian.Diagnostics;
 using System;
 using Deucarian.Combat;
+using Deucarian.Combat.Unity;
 using UnityEngine;
 
 namespace Deucarian.Attacks.Authoring
@@ -13,6 +14,10 @@ namespace Deucarian.Attacks.Authoring
         private CombatScope targets;
         private AttackSourceId source;
         private bool destroyed;
+        [SerializeField] private CombatHost combat;
+        [SerializeField] private Combatant sourceActor;
+        [SerializeField] private AttackDefinitionCatalog definitions;
+        private bool ownsClock;
 
         public void Configure(AttackRuntime value, AttackSourceId sourceId, CombatScope targetScope)
         {
@@ -28,8 +33,10 @@ namespace Deucarian.Attacks.Authoring
         public AttackResult Request(AttackKey attack, CombatantHandle target)
         {
             if (destroyed) throw new ObjectDisposedException(nameof(AttackHost));
+            EnsureSceneScope();
             if (runtime == null) throw new InvalidOperationException("AttackHost '" + name + "' is not configured. Supply its AttackRuntime, registered source ID and combat target scope during startup.");
             if (attack == null) throw new ArgumentNullException(nameof(attack), "Select an AttackKey or pass a named attack definition.");
+            if (ownsClock && (sourceActor == null || !sourceActor.isActiveAndEnabled)) return new AttackResult(false, AttackFailureReason.SourceDisabled, null, default);
             if (!targets.Contains(target) || !target.TryGetState(out var health, out _, out var defense))
                 return new AttackResult(false, AttackFailureReason.InvalidCandidate, null, default);
             var result = runtime.TryAttack(source, new AttackDefinitionId(attack.Id),
@@ -40,6 +47,18 @@ namespace Deucarian.Attacks.Authoring
                 throw new InvalidOperationException("AttackHost '" + name + "' has an unregistered source. Register its source in the configured AttackRuntime before requesting attacks.");
             return result;
         }
+        private void EnsureSceneScope()
+        {
+            if (runtime != null || combat == null) return;
+            if (sourceActor == null) throw new InvalidOperationException("Assign the source Combatant on AttackHost, or configure its runtime explicitly.");
+            var catalog = combat.Scope.Catalog;
+            if (!combat.Scope.Contains(sourceActor.Handle)) throw new InvalidOperationException("The AttackHost source Combatant must belong to the assigned CombatHost's scope.");
+            var value = new AttackRuntime(catalog, (definitions != null ? definitions : AttackDefinitionCatalog.LoadProject()).CreateRuntimeDefinitions());
+            var sourceId = new AttackSourceId(Guid.NewGuid().ToString("N"));
+            value.RegisterSource(new AttackSourceSnapshot(sourceId, sourceActor.Handle.Id));
+            Configure(value, sourceId, combat.Scope); ownsClock = true;
+        }
+        private void FixedUpdate() { if (ownsClock) runtime.Tick(1); }
         private void OnDestroy() { diagnosticRegistration?.Dispose(); diagnosticRegistration = null;  destroyed = true; runtime = null; targets = null; }
         private DiagnosticProviderRegistration diagnosticRegistration;
         private void Awake() => diagnosticRegistration = DiagnosticProviderRegistry.Register(this);
