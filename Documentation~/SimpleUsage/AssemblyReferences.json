@@ -1,18 +1,17 @@
 {
-  "name": "Deucarian.Attacks.Authoring",
-  "rootNamespace": "Deucarian.Attacks.Authoring",
+  "name": "Deucarian.Attacks.Samples.SimpleUsage",
+  "rootNamespace": "Deucarian.Attacks.Samples.SimpleUsage",
   "references": [
     "Deucarian.Attacks",
-    "Deucarian.Combat",
-    "Deucarian.GameplayFoundation",
-    "Deucarian.Diagnostics"
+    "Deucarian.Attacks.Authoring",
+    "Deucarian.Combat"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
-  "autoReferenced": true,
+  "autoReferenced": false,
   "defineConstraints": [],
   "versionDefines": [],
   "noEngineReferences": false
