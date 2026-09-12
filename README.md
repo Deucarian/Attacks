@@ -1,5 +1,15 @@
 # Deucarian Attacks
 
+## Typed definition workflow
+
+Select an attack definition and a live combatant. AttackTrigger resolves direct damage through Combat; the host advances cooldowns.
+
+Start with the [Definition Workflow walkthrough](Documentation~/DefinitionWorkflow.md).
+Import **Definition Workflow** in Package Manager for a configured sample scene
+and short caller scripts. Definitions can be edited as assets or editable C# declarations; generated keys
+work in code and Inspector dropdowns.
+
+
 `com.deucarian.attacks` is a pure C# attack orchestration package for fixed-tick cooldowns, caller-supplied target candidates, deterministic target selection, attack intents, and Combat damage request creation.
 
 Attacks answers who can attack, when they can attack, which supplied candidate should be attacked, and what Combat request should be produced. It does not query scenes, move projectiles, equip weapons, render VFX/audio/UI, grant rewards, save files, place towers, or depend on Defense Games.

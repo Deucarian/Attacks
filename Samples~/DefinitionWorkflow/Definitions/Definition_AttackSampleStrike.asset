@@ -1,0 +1,108 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-5745671029335731580
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a4d8869868f4959a817914076c6a18c, type: 3}
+  m_Name: Targeting
+  m_EditorClassIdentifier: Deucarian.Attacks.Authoring::Deucarian.Attacks.Authoring.AttackTargetingDefinitionAsset
+  _mode: 0
+  _maxTargets: 1
+  _requiresLineOfSight: 0
+--- !u!114 &-1146678900437685953
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3531ee9c59b94756ab9c7f02896330e0, type: 3}
+  m_Name: Mechanics
+  m_EditorClassIdentifier: Deucarian.Attacks.Authoring::Deucarian.Attacks.Authoring.AttackMechanicsDefinitionAsset
+  _cooldownTicks: 20
+  _range: 6
+  _damageAmount: 10
+  _damageTypeId: d39fc16b8ef643e19ada63b4428b8b74
+--- !u!114 &-458732665987437442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 60e0f27f283a4a63aa906af7fc6ff693, type: 3}
+  m_Name: Presentation
+  m_EditorClassIdentifier: Deucarian.Attacks.Authoring::Deucarian.Attacks.Authoring.AttackPresentationDefinitionAsset
+  _events: []
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 026a24230b52426782291341bd80e8a7, type: 3}
+  m_Name: Definition_AttackSampleStrike
+  m_EditorClassIdentifier: Deucarian.Attacks.Authoring::Deucarian.Attacks.Authoring.AttackDefinitionAsset
+  _id: fb116a94585d481c8e90b833ceffedb0
+  _displayName: AttackSampleStrike
+  _icon: {fileID: 0}
+  _tags: []
+  _mechanics: {fileID: -1146678900437685953}
+  _targeting: {fileID: -5745671029335731580}
+  _delivery: {fileID: 8289730543637069013}
+  _statusEffects: {fileID: 904047965329776229}
+  _presentation: {fileID: -458732665987437442}
+  _upgradeHookId:
+  _balancingNotes:
+--- !u!114 &904047965329776229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 56a9ccb92a384ce2bd704aff62c4dc40, type: 3}
+  m_Name: StatusEffects
+  m_EditorClassIdentifier: Deucarian.Attacks.Authoring::Deucarian.Attacks.Authoring.AttackStatusEffectsDefinitionAsset
+  _statusEffects: []
+--- !u!114 &8289730543637069013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b13c7e381e9749df98db17e92868760a, type: 3}
+  m_Name: Delivery
+  m_EditorClassIdentifier: Deucarian.Attacks.Authoring::Deucarian.Attacks.Authoring.AttackDeliveryDefinitionAsset
+  _mode: 0
+  _projectileDefinitionId: projectile.example.basic
+  _projectileSpawnableId: projectile.example.basic
+  _projectilePrefab: {fileID: 0}
+  _projectileSpeed: 8
+  _projectileLifetimeTicks: 120
+  _homing: 0
+  _homingTurnRate: 180
+  _pierceCount: 0
+  _radius: 1.5
+  _beamVfxPrefab: {fileID: 0}
+  _impactVfxPrefab: {fileID: 0}
+  _maxHits: 1
+  _tickIntervalSeconds: 0.5

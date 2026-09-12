@@ -1,6 +1,6 @@
 {
   "name": "com.deucarian.attacks",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "displayName": "Deucarian Attacks",
   "description": "Pure C# attack orchestration plus Unity game content authoring assets and authoring providers.",
   "unity": "6000.3",
@@ -13,10 +13,10 @@
   },
   "license": "MIT",
   "dependencies": {
-    "com.deucarian.gameplay-foundation": "0.1.1",
-    "com.deucarian.combat": "0.1.1",
-    "com.deucarian.editor": "1.10.8",
-    "com.deucarian.game-content-authoring": "0.2.4",
+    "com.deucarian.gameplay-foundation": "0.2.0",
+    "com.deucarian.combat": "0.2.0",
+    "com.deucarian.editor": "1.12.0",
+    "com.deucarian.game-content-authoring": "0.3.0",
     "com.deucarian.diagnostics": "0.2.3"
   },
   "samples": [
@@ -24,6 +24,11 @@
       "displayName": "Attacks Minimal",
       "description": "Small direct attack sample using supplied target candidates and Combat resolution.",
       "path": "Samples~/AttacksMinimal"
+    },
+    {
+      "displayName": "Definition Workflow",
+      "description": "Playable scene with typed C# calls, Inspector components, editable definitions and shared host ownership.",
+      "path": "Samples~/DefinitionWorkflow"
     }
   ]
 }

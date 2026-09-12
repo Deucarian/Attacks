@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Deucarian.Attacks.Authoring
 {
-    [CreateAssetMenu(menuName = "Deucarian/Enemies/Enemy Definition", fileName = "EnemyDefinition")]
     public sealed class EnemyDefinitionAsset : ScriptableObject
     {
         [SerializeField] private string _id = "enemy.example.basic";
