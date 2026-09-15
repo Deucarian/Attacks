@@ -1,0 +1,21 @@
+{
+  "name": "Deucarian.Attacks.Tests.PlayMode",
+  "references": [
+    "Deucarian.Attacks",
+    "Deucarian.Attacks.Authoring",
+    "Deucarian.GameplayFoundation",
+    "Deucarian.Combat",
+    "Deucarian.DefenseGames",
+    "Deucarian.Encounters",
+    "Deucarian.WorldSpawning",
+    "Deucarian.WorldNavigation",
+    "Deucarian.Diagnostics"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ]
+}

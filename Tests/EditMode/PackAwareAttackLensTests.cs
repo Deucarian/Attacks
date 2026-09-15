@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using Deucarian.Attacks.Editor;
 using Deucarian.GameContentAuthoring.Editor;
 using NUnit.Framework;
+using UnityEngine.UIElements;
 
 namespace Deucarian.Attacks.Tests
 {
@@ -22,6 +24,9 @@ namespace Deucarian.Attacks.Tests
             Assert.That(encounter.DisplayName, Is.EqualTo("Wave / Encounter"));
             Assert.That(encounter.Lens.Matches(Record("profile", GameContentRecordCapabilities.Encounter)), Is.True);
             Assert.That(encounter.Lens.Matches(Record("wave", GameContentRecordCapabilities.Wave)), Is.True);
+            Assert.That(attack.RecordIconId, Is.EqualTo("swords"));
+            Assert.That(enemy.RecordIconId, Is.EqualTo("skull"));
+            Assert.That(encounter.RecordIconId, Is.EqualTo("users-round"));
         }
 
         [Test]
@@ -90,6 +95,13 @@ namespace Deucarian.Attacks.Tests
                     Record("attack", GameContentRecordCapabilities.Attack),
                     out AttackContentRecordProjection projection), Is.True);
                 Assert.That(projection.Damage, Is.EqualTo(42f));
+                var view = new AttackAuthoringProvider().CreateRecordDetails(Record("attack", GameContentRecordCapabilities.Attack));
+                var labels = view.Query<Label>().ToList().Select(label => label.text).ToArray();
+                Assert.That(labels, Does.Contain("42"));
+                Assert.That(labels, Does.Contain("Payload"));
+                Assert.That(labels, Does.Contain("Evolution"));
+                Assert.That(view.Q<Foldout>().value, Is.False, "Secondary projection facts are available without crowding the first view.");
+                Assert.That(view.Q<FloatField>(), Is.Null, "Imported projections must not become unsafe write fields.");
             }
             finally
             {

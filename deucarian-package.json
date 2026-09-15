@@ -11,16 +11,20 @@
     "Deucarian.Attacks.Editor"
   ],
   "sampleAssemblies": [
-    "Deucarian.Attacks.Samples"
+    "Deucarian.Attacks.Authoring.Samples.DefinitionWorkflow",
+    "Deucarian.Attacks.Samples",
+    "Deucarian.Samples.Attacks.DefinitionDeclarations"
   ],
   "testAssemblies": [
-    "Deucarian.Attacks.Tests"
+    "Deucarian.Attacks.Tests",
+    "Deucarian.Attacks.Tests.PlayMode"
   ],
   "requiredDependencies": [
     "com.deucarian.gameplay-foundation",
     "com.deucarian.combat",
     "com.deucarian.editor",
-    "com.deucarian.game-content-authoring"
+    "com.deucarian.game-content-authoring",
+    "com.deucarian.diagnostics"
   ],
   "optionalVersionDefinedDependencies": [],
   "allowedDirectDebugCalls": [],

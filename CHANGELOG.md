@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0] - 2026-09-11
+
+- Add typed reusable definition authoring and/or scoped Inspector components that share the existing C# service behavior.
+- Include a playable Definition Workflow sample with configured hosts, short callers and usage documentation.
+- Align declared package dependencies with the definition-authoring development wave.
+
+
+## [0.1.4] - 2026-09-11
+
+- Provide native Attack, Enemy and Wave authoring forms and imported-record views, including existing preview operations and explicit safe draft saves.
+- Require Editor 1.10.6 for the shared native controls, typography, responsive layouts and accessible interaction states.
+
 ## [0.1.3] - 2026-09-09
 
 - Use Editor-owned typography, fields, and actions throughout the authoring forms. Runtime attack behavior is unchanged.

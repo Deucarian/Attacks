@@ -1,0 +1,5 @@
+{
+  "name": "Deucarian.Samples.Attacks.DefinitionDeclarations",
+  "references": ["Deucarian.Attacks.Authoring", "Deucarian.Attacks.Editor", "Deucarian.Combat", "Deucarian.Combat.Editor", "Deucarian.Editor"],
+  "includePlatforms": ["Editor"]
+}

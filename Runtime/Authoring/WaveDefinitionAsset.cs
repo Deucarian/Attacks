@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Deucarian.Attacks.Authoring
 {
-    [CreateAssetMenu(menuName = "Deucarian/Waves/Wave Definition", fileName = "WaveDefinition")]
     public sealed class WaveDefinitionAsset : ScriptableObject
     {
         [SerializeField] private string _id = "wave.example.basic";

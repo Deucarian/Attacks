@@ -1,0 +1,9 @@
+{
+  "name": "Deucarian.Attacks.Authoring.Samples.DefinitionWorkflow",
+  "references": [
+    "Deucarian.Attacks",
+    "Deucarian.Attacks.Authoring",
+    "Deucarian.Combat",
+    "Deucarian.Combat.Unity"
+  ]
+}
